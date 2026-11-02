@@ -551,3 +551,11 @@ FILE=MODEL.BAS
 Paths inside the project directory are stored relatively, allowing the directory to be moved as a unit. The entry source must also be a member. At most sixteen files may be registered. Opening validates registered sources; a missing or unreadable file prevents replacing the current workspace.
 
 Membership changes save immediately. `.PTM` is a temporary manifest and `.PBK` preserves the previous layout. Source files keep their own `.TMP` and `.BAK`. Loading examples switches safely to the installed DEFAULT project before opening the example.
+
+## 15. Code completion (0.6)
+
+Press **Ctrl+Space** in the editor for suggestions. Keep typing to filter, select with **Up/Down**, and insert with **Enter** or **Tab**. **Escape** closes the list. Completion replaces the current word and preserves the rest of the line. Incomplete or invalid statements do not prevent suggestions.
+
+Typing a dot opens member suggestions automatically. For example, `third.` shows public Reken members after `Dim third As New Reken(10)` and `Imports "REKEN.BAS"`. Inside a class, `Me.` also includes its private fields. Suggestions include inherited public members, method parameters, local variables, classes, BASIC keywords and Collection members. The selected member's type or method signature appears below the list. Completion inserts the name; enter parentheses and arguments yourself, for example `third.GetValue()`. Constructor arguments are also entered manually. Open modules use their unsaved contents; imports do not need to be executed first.
+
+This first version handles simple receivers such as `third.`, `Me.` and `MyBase.`. Chained expressions such as `items(1).` and `factory.Create().`, and type inference from assignments, are not supported yet. Use explicit `Dim ... As ...` declarations. The index supports up to 16 files and 512 declarations, with up to 64 suggestions. Suggestions are suppressed inside strings and comments.

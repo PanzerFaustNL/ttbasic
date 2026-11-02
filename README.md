@@ -1,6 +1,6 @@
 # TT BASIC Studio
 
-A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.5** adds native project management: New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
+A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.6** adds code completion (Ctrl+Space and automatic member lists after a dot) and a resizable output panel. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
 
 ## Manuals
 
@@ -64,7 +64,7 @@ The suites cover project creation, manifest round trips, file copying, collision
 
 ## Current scope
 
-- Text editor, native menus, project/import tree, properties and output panels.
+- Text editor with code completion, native menus, project/import tree, properties and resizable output panels.
 - Separate projects with a default MAIN.BAS entry point, editable source files and persistent .TBP manifests.
 - Integer and string BASIC, Boolean logic, procedures, functions, typed fields and object references.
 - Up to 16 files, 256 lines per file and 2048 loaded source lines.

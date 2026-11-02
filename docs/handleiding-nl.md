@@ -551,3 +551,11 @@ FILE=MODEL.BAS
 Paden binnen de projectmap worden relatief opgeslagen, zodat de hele map verplaatsbaar is. Het startbestand is ook een projectlid. Er kunnen maximaal zestien geregistreerde bestanden zijn. Bij het openen worden de geregistreerde bronbestanden gecontroleerd; een onleesbaar of ontbrekend bestand voorkomt dat het huidige project wordt vervangen.
 
 Projectwijzigingen worden meteen opgeslagen. `.PTM` is het tijdelijke manifest en `.PBK` de vorige projectindeling. Bronbestanden behouden hun eigen `.TMP` en `.BAK`. Voorbeelden worden in het geïnstalleerde DEFAULT-project geladen; je huidige project wordt daarbij eerst veilig verlaten.
+
+## 15. Code aanvullen (0.6)
+
+Druk in de editor op **Ctrl+Spatie** voor suggesties. Typ verder om de lijst te filteren, kies met **pijl omhoog/omlaag** en voeg in met **Enter** of **Tab**. **Escape** sluit de lijst. Het huidige woord wordt vervangen; de rest van de regel blijft behouden. Fouten of onvolledige statements blokkeren de aanvulling niet.
+
+Na een punt verschijnt de lijst automatisch: bijvoorbeeld `third.` toont de beschikbare openbare leden van Reken, wanneer `Dim third As New Reken(10)` en `Imports "REKEN.BAS"` aanwezig zijn. Binnen een klasse toont `Me.` ook de eigen private velden. Geërfde openbare leden, methodeparameters, lokale variabelen, klassen, BASIC-sleutelwoorden en Collection-leden worden meegenomen. Onder de lijst staat het type of de methodesignatuur. Alleen de naam wordt ingevoegd; typ bij een methode zelf de haakjes en argumenten, bijvoorbeeld `third.GetValue()`. Voeg na een constructor ook zelf de argumenten toe. Gewijzigde geopende modules worden vanuit het geheugen gelezen; imports hoeven niet eerst te worden uitgevoerd.
+
+Deze eerste versie ondersteunt eenvoudige ontvangers zoals `third.`, `Me.` en `MyBase.`. Samengestelde expressies zoals `items(1).` en `factory.Create().` en type-inferentie uit toewijzingen worden nog niet ondersteund. Gebruik een expliciete `Dim ... As ...` declaratie. De index omvat maximaal 16 bestanden en 512 declaraties, met maximaal 64 suggesties per lijst. Er verschijnt geen lijst binnen strings of commentaar.

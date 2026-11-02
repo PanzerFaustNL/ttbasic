@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.5 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.6 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <tos.h>
 #include "PROJECT.H"
+#include "COMPLETE.H"
 #define DEFAULT_SOURCE "C:\\TTBASIC\\MAIN.BAS"
 
 #define KIND (NAME | CLOSER | MOVER)
@@ -17,6 +18,8 @@ static int row, col, first, leftcol, lines = 1, changed, props;
 static int editor_x, editor_y, editor_w, editor_h, cols, rows;
 static int out_used, error_line, done;
 static int output_height = 124;
+static Completion completion;
+static int completing, completion_selected;
 static int show_tree = 1, show_output = 1, tree_expanded = 1;
 static int undo_ready, undo_row, undo_col, undo_lines, undo_changed;
 static char undo_source[MAX_LINES][LINE_LEN];
@@ -26,7 +29,7 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.5 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.6 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
@@ -94,7 +97,7 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.5 - %.8s / %.40s", current_project.name, document_name());
+    sprintf(title, "TT BASIC Studio 0.6 - %.8s / %.40s", current_project.name, document_name());
     wind_set(window, WF_NAME, title);
 }
 static void open_path(char *path);
@@ -182,6 +185,31 @@ static void heading(int x, int y, int width, char *label)
     fill(x, y + 23, width, 1, 9);
     text(x + 7, y + 18, 1, label, width - 14);
 }
+static void start_completion(void)
+{
+    cache_current();
+    complete_build(source,lines,row,col,documents[active_document].path,cached_file,&completion);
+    completing=completion.count>0;completion_selected=0;
+}
+static void paint_completion(void)
+{
+    int x,y,w,h,n,start,i;
+    if(!completing)return;
+    n=minimum(6,minimum(completion.count,maximum(1,(editor_h-8)/ch-1)));w=minimum(440,editor_w-36);h=(n+1)*ch+8;
+    x=editor_x+36+(col-leftcol)*cw;
+    x=maximum(editor_x+32,minimum(x,editor_x+editor_w-w));
+    y=editor_y+(row-first+1)*ch;
+    if(y+h>editor_y+editor_h)y=maximum(editor_y,editor_y+(row-first)*ch-h);
+    fill(x,y,w,h,1);fill(x+1,y+1,w-2,h-2,0);
+    start=maximum(0,completion_selected-n+1);
+    for(i=0;i<n;++i){
+        if(start+i==completion_selected)fill(x+2,y+2+i*ch,w-4,ch,4);
+        text(x+6,y+2+(i+1)*ch-3,start+i==completion_selected?0:1,
+            completion.item[start+i].name,w-12);
+    }
+    fill(x+2,y+2+n*ch,w-4,ch+3,8);
+    text(x+6,y+2+(n+1)*ch-3,1,completion.item[completion_selected].detail,w-12);
+}
 static void paint(void)
 {
     int i, y, line, bottom, panel;
@@ -259,6 +287,7 @@ static void paint(void)
     fill(wx, wy + wh - 22, ww, 22, 4);
     sprintf(buf, "Ln %d : %d | %s", row + 1, col + 1, status);
     text(wx + 8, wy + wh - 6, 0, buf, ww - 16);
+    paint_completion();
 }
 static void redraw(int x, int y, int w, int h)
 {
@@ -614,9 +643,27 @@ static void action(int command)
 }
 static void edit(int key, int state)
 {
-    int ascii, scan, len, i;
+    int ascii, scan, len, i, was_completing;
     char tail[LINE_LEN];
     ascii = key & 255; scan = (key >> 8) & 255; len = strlen(source[row]);
+    was_completing=completing;
+    if ((state & 4) && scan==57) { start_completion();return; }
+    if (completing) {
+        if(scan==72){completion_selected=maximum(0,completion_selected-1);return;}
+        if(scan==80){completion_selected=minimum(completion.count-1,completion_selected+1);return;}
+        if(ascii==27){completing=0;return;}
+        if(ascii==13 || ascii==9){
+            i=strlen(completion.item[completion_selected].name);
+            if(len-(completion.end-completion.start)+i<LINE_LEN){
+                remember();
+                memmove(source[row]+completion.start+i,source[row]+completion.end,len-completion.end+1);
+                memcpy(source[row]+completion.start,completion.item[completion_selected].name,i);
+                col=completion.start+i;changed=1;
+            }
+            completing=0;return;
+        }
+        completing=0;
+    }
     if (state & 4) {
         switch (scan) {
         case 31: action((state & 3)?ACT_SAVEALL:ACT_SAVE); return;
@@ -666,6 +713,8 @@ static void edit(int key, int state)
         source[row][col++] = (char)ascii; changed = 1;
     }
     col = minimum(col, strlen(source[row]));
+    if(!(state & 12) && (ascii=='.' || (was_completing &&
+        ((ascii>=32 && ascii<127 && (isalnum(ascii) || ascii=='_')) || ascii==8))))start_completion();
 }
 int main(void)
 {
@@ -723,7 +772,7 @@ int main(void)
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, msg, 0, 0,
             &mx, &my, &mb, &ks, &key, &clicks);
         if (events & MU_MESAG) {
-            if (msg[0] == MN_SELECTED) { action(menus_event(msg[3], msg[4])); refresh(); }
+            if (msg[0] == MN_SELECTED) { completing=0; action(menus_event(msg[3], msg[4])); refresh(); }
             else if (msg[3] == window) {
                 if (msg[0] == WM_REDRAW) redraw(msg[4], msg[5], msg[6], msg[7]);
                 else if (msg[0] == WM_CLOSED) done = discard_all();
@@ -736,6 +785,7 @@ int main(void)
         wind_get(window, WF_TOP, &top, &junk, &junk, &junk);
         if ((events & MU_KEYBD) && top == window) { edit(key, ks); refresh(); }
         if ((events & MU_BUTTON) && wind_find(mx, my) == window) {
+            completing=0;
             if (top != window) wind_set(window, WF_TOP, 0, 0, 0, 0);
             else if (my >= wy + 5 && my < wy + 29) {
                 if (mx >= wx + 6 && mx < wx + 100) action(ACT_OPEN);

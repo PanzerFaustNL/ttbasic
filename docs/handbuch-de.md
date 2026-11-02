@@ -551,3 +551,11 @@ FILE=MODEL.BAS
 Pfade innerhalb des Projektordners werden relativ gespeichert. Dadurch lässt sich der ganze Ordner verschieben. Die Startdatei muss auch Mitglied sein. Maximal sechzehn Dateien sind registrierbar. Beim Öffnen werden die Quellen geprüft; eine fehlende oder unlesbare Datei verhindert, dass das aktuelle Projekt ersetzt wird.
 
 Änderungen der Mitgliedschaft werden sofort gespeichert. `.PTM` ist das temporäre Manifest, `.PBK` enthält die vorherige Struktur. Quelldateien behalten eigene `.TMP`- und `.BAK`-Dateien. Beispiele wechseln nach Rückfrage sicher in das installierte DEFAULT-Projekt.
+
+## 15. Code-Vervollstaendigung (0.6)
+
+Mit **Strg+Leertaste** zeigt der Editor Vorschlaege. Weiterschreiben filtert die Liste. Mit **Pfeil auf/ab** auswaehlen und mit **Enter** oder **Tab** einfuegen; **Escape** schliesst die Liste. Das aktuelle Wort wird ersetzt, der Rest der Zeile bleibt erhalten. Unvollstaendige oder fehlerhafte Anweisungen verhindern die Vorschlaege nicht.
+
+Nach einem Punkt erscheint die Liste automatisch. Beispielsweise zeigt `third.` die oeffentlichen Mitglieder von Reken nach `Dim third As New Reken(10)` und `Imports "REKEN.BAS"`. Innerhalb einer Klasse zeigt `Me.` auch deren private Felder. Geerbte oeffentliche Mitglieder, Methodenparameter, lokale Variablen, Klassen, BASIC-Schluesselwoerter und Collection-Mitglieder werden beruecksichtigt. Unter der Liste steht der Typ oder die Methodensignatur. Nur der Name wird eingefuegt; Klammern und Argumente selbst eingeben, beispielsweise `third.GetValue()`. Auch Konstruktorargumente werden von Hand eingegeben. Geoeffnete Module werden mit ihren ungespeicherten Aenderungen analysiert; eine Ausfuehrung ist nicht notwendig.
+
+Diese erste Version unterstuetzt einfache Empfaenger wie `third.`, `Me.` und `MyBase.`. Verkettete Ausdruecke wie `items(1).` und `factory.Create().` sowie Typinferenz aus Zuweisungen fehlen noch. Verwenden Sie ausdrueckliche `Dim ... As ...` Deklarationen. Maximal 16 Dateien, 512 Deklarationen und 64 Vorschlaege je Liste werden verarbeitet. Innerhalb von Strings und Kommentaren erscheint keine Liste.
