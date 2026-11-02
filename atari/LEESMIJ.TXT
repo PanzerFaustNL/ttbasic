@@ -1,4 +1,4 @@
-TT BASIC Studio 0.3
+TT BASIC Studio 0.4
 ===================
 
 NEDERLANDS
@@ -42,9 +42,15 @@ Ctrl+Q Quit / Afsluiten / Beenden
 Manuals / Handleidingen / Handbuecher:
 https://github.com/PanzerFaustNL/ttbasic/tree/main/docs
 
-64 lines per file, 95 ASCII chars per line; 16 files per project.
+256 lines per file, 159 ASCII chars per line; 16 files per project.
 Numeric values: -1000000 .. +1000000.
 Classes, constructors, Public/Private fields, Sub, Function and Return.
-No loops, conditionals, string variables or inheritance yet.
+If/ElseIf/Else, While/Wend, Do/Loop, For/Next, For Each and Select Case.
+String variables, arrays, collections, Input, inheritance and interfaces.
+Project menu: FLOW.BAS, POLY.BAS and INPUT.BAS examples.
+Escape stops a running program. Cancel stops an Input dialog.
+Pure C: absolute calls (-P), 512 KiB stack.
+One-dimensional arrays, 128 items; 32 array/collection allocations per run.
+Strings: 127 chars; GEM Input: 63 chars; execution limit: 1000000 steps.
 No standalone BASIC compiler or form designer yet.
 Built and tested in Hatari / Pure C; physical TT validation pending.

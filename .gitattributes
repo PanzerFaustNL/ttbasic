@@ -1,6 +1,6 @@
 * text=auto
 *.C text eol=crlf
-*.c text eol=lf
+/tests/*.c text eol=lf
 *.H text eol=crlf
 *.BAS text eol=crlf
 *.PRJ text eol=crlf

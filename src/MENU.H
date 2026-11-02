@@ -22,10 +22,14 @@
 #define ACT_LANG_NL 19
 #define ACT_LANG_EN 20
 #define ACT_LANG_DE 21
+#define ACT_FLOW 22
+#define ACT_POLY 23
+#define ACT_INPUT 24
 void menus_init(int screen_w, int screen_h);
 void menus_close(void);
 void menus_language(int language);
 int menus_event(int title, int item);
 void menus_state(int undo, int paste, int tree, int props, int output);
 int search_dialog(char *query);
+int input_dialog(char *prompt, char *buffer, int capacity);
 #endif

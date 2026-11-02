@@ -5,7 +5,7 @@
 #include "LANG.H"
 #define MAX_OBJS 80
 static OBJECT menu[MAX_OBJS];
-static int actions[MAX_OBJS], items[22], used;
+static int actions[MAX_OBJS], items[25], used;
 static int screen_width, screen_height;
 static char *titles[6];
 static int title_width[] = { 10, 9, 12, 10, 9, 8 };
@@ -79,6 +79,9 @@ void menus_init(int screen_w, int screen_h)
             ITEM(tr(T_M_CLEAR), ACT_CLEAR);
             ITEM("-----------------------------", 0);
             ITEM(tr(T_M_DEMO), ACT_DEMO);
+            ITEM(tr(T_M_FLOW), ACT_FLOW);
+            ITEM(tr(T_M_POLY), ACT_POLY);
+            ITEM(tr(T_M_INPUT), ACT_INPUT);
         } else if (i == 4) {
             ITEM(tr(T_M_TREE), ACT_TREE);
             ITEM(tr(T_M_PROPS), ACT_PROPS);
@@ -153,4 +156,31 @@ int search_dialog(char *query)
     form_dial(3, 0, 0, 0, 0, x, y, w, h);
     if (selected != 3 || !input[0]) return 0;
     strcpy(query, input); return 1;
+}
+
+int input_dialog(char *prompt, char *buffer, int capacity)
+{
+    OBJECT dialog[6]; TEDINFO field;
+    char input[64],pattern[64],label[64];
+    int x,y,w,h,selected;
+    memset(input,0,sizeof(input)); memset(pattern,'_',63); pattern[63]=0;
+    strncpy(label,prompt,63); label[63]=0; memset(&field,0,sizeof(field));
+    field.te_ptext=input; field.te_ptmplt=pattern; field.te_pvalid="X";
+    field.te_font=IBM; field.te_just=TE_LEFT; field.te_color=0x1180;
+    field.te_thickness=-1; field.te_txtlen=64; field.te_tmplen=64;
+    object(dialog,0,G_BOX,0,0,560,160); dialog[0].ob_state=OUTLINED;
+    object(dialog,1,G_STRING,16,12,528,16); dialog[1].ob_spec.free_string=tr(T_INPUT_TITLE);
+    object(dialog,2,G_STRING,16,44,528,16); dialog[2].ob_spec.free_string=label;
+    object(dialog,3,G_FTEXT,24,76,512,16); dialog[3].ob_spec.tedinfo=&field; dialog[3].ob_flags=EDITABLE;
+    object(dialog,4,G_BUTTON,128,120,112,24); dialog[4].ob_spec.free_string=tr(T_OK);
+    dialog[4].ob_flags=SELECTABLE|EXIT|DEFAULT;
+    object(dialog,5,G_BUTTON,304,120,128,24); dialog[5].ob_spec.free_string=tr(T_CANCEL);
+    dialog[5].ob_flags=SELECTABLE|EXIT|LASTOB;
+    objc_add(dialog,0,1); objc_add(dialog,0,2); objc_add(dialog,0,3); objc_add(dialog,0,4); objc_add(dialog,0,5);
+    form_center(dialog,&x,&y,&w,&h); form_dial(0,0,0,0,0,x,y,w,h);
+    objc_draw(dialog,0,MAX_DEPTH,x,y,w,h); selected=form_do(dialog,3)&0x7fff;
+    form_dial(3,0,0,0,0,x,y,w,h);
+    if (selected!=4) return 0;
+    if (capacity>0) { strncpy(buffer,input,capacity-1); buffer[capacity-1]=0; }
+    return 1;
 }

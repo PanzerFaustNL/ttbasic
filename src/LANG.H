@@ -72,6 +72,13 @@
 #define T_CANCEL 69
 #define T_READY 70
 #define T_LANG_CHANGED 71
+#define T_INPUT_TITLE 72
+#define T_OK 73
+#define T_RUNNING 74
+#define T_INPUT_WAIT 75
+#define T_M_FLOW 76
+#define T_M_POLY 77
+#define T_M_INPUT 78
 char *tr(int key);
 int language_get(void);
 void language_set(int language);

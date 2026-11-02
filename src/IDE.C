@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.3 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.4 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -24,7 +24,7 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.3 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.4 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
@@ -73,7 +73,7 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.3 - %.64s", document_name());
+    sprintf(title, "TT BASIC Studio 0.4 - %.64s", document_name());
     wind_set(window, WF_NAME, title);
 }
 static void open_import(int index);
@@ -138,23 +138,11 @@ static void code_line(int number, int y)
         } else if (isalpha((unsigned char)s[start])) {
             while (isalnum((unsigned char)s[end]) || s[end] == '_') ++end;
             if (sameword(s + start, "REM", end - start)) { end = strlen(s); color = 9; }
-            else if (sameword(s + start, "PRINT", end - start) ||
-                     sameword(s + start, "LET", end - start) ||
-                     sameword(s + start, "END", end - start) ||
-                     sameword(s + start, "IMPORTS", end - start) ||
-                     sameword(s + start, "CLASS", end - start) ||
-                     sameword(s + start, "PUBLIC", end - start) ||
-                     sameword(s + start, "PRIVATE", end - start) ||
-                     sameword(s + start, "DIM", end - start) ||
-                     sameword(s + start, "AS", end - start) ||
-                     sameword(s + start, "NEW", end - start) ||
-                     sameword(s + start, "ME", end - start) ||
-                     sameword(s + start, "SUB", end - start) ||
-                     sameword(s + start, "FUNCTION", end - start) ||
-                     sameword(s + start, "RETURN", end - start) ||
-                     sameword(s + start, "CALL", end - start) ||
-                     sameword(s + start, "NOTHING", end - start) ||
-                     sameword(s + start, "INTEGER", end - start)) color = 4;
+            else {
+                char keyword[LINE_LEN];
+                memcpy(keyword,s+start,end-start); keyword[end-start]=0;
+                if (basic_is_reserved(keyword)) color=4;
+            }
         }
         visible = maximum(start, leftcol);
         i = minimum(end, leftcol + cols) - visible;
@@ -232,7 +220,7 @@ static void paint(void)
         text(panel + 7, wy + 139, 9, tr(T_LANGUAGE), 118);
         text(panel + 7, wy + 159, 1, "TT BASIC", 118);
         text(panel + 7, wy + 191, 9, tr(T_LINES), 118);
-        sprintf(buf, "%d / 64", lines); text(panel + 7, wy + 211, 1, buf, 118);
+        sprintf(buf, "%d / 256", lines); text(panel + 7, wy + 211, 1, buf, 118);
         text(panel + 7, wy + 243, 9, tr(T_STATUS), 118);
         text(panel + 7, wy + 263, 1, changed ? tr(T_MODIFIED) : tr(T_SAVED), 118);
     }
@@ -291,7 +279,8 @@ static int discard(void)
 static void open_source(void)
 {
     FILE *f;
-    char incoming[MAX_LINES][LINE_LEN], buf[LINE_LEN + 3];
+    static char incoming[MAX_LINES][LINE_LEN];
+    char buf[LINE_LEN + 3];
     int n, len, failed;
     if (!discard()) return;
     f = fopen(documents[active_document].path, "r");
@@ -340,10 +329,33 @@ static void save_source(void)
     changed = 0; undo_ready = 0; scan_files();
     sprintf(status, tr(T_SAVE_OK), document_name());
 }
+static int runtime_input(char *prompt,char *buffer,int capacity)
+{
+    strcpy(status,tr(T_INPUT_WAIT)); refresh();
+    return input_dialog(prompt,buffer,capacity);
+}
+static int runtime_poll(void)
+{
+    int message[8],events,mx,my,mb,ks,key,clicks;
+    events=evnt_multi(MU_KEYBD|MU_TIMER|MU_MESAG,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,message,1,0,&mx,&my,&mb,&ks,&key,&clicks);
+    if ((events & MU_KEYBD) && (key & 255)==27) return 0;
+    if (events & MU_MESAG) {
+        if (message[0]==MN_SELECTED) {
+            if (menus_event(message[3],message[4])==ACT_QUIT) return 0;
+        } else if (message[3]==window) {
+            if (message[0]==WM_CLOSED) return 0;
+            if (message[0]==WM_REDRAW) redraw(message[4],message[5],message[6],message[7]);
+            else if (message[0]==WM_TOPPED) wind_set(window,WF_TOP,0,0,0,0);
+            else if (message[0]==WM_MOVED) wind_set(window,WF_CURRXYWH,message[4],message[5],message[6],message[7]);
+        }
+    }
+    return 1;
+}
 static void run_source(void)
 {
     show_output = 1;
-    cache_current();
+    cache_current(); strcpy(status,tr(T_RUNNING)); refresh();
     error_line = basic_run_project(documents[0].text, documents[0].count, SOURCE, output, &out_used);
     if (error_line) {
         if (!path_equal(documents[active_document].path, basic_error_path()))
@@ -426,6 +438,9 @@ static void action(int command)
         row = col = first = leftcol = error_line = out_used = 0;
         scan_files();
         changed = 1; strcpy(status, tr(T_NEW_STATUS)); break;
+    case ACT_FLOW:
+    case ACT_POLY:
+    case ACT_INPUT:
     case ACT_DEMO:
         cache_current();
         if (active_document) activate_document(0);
@@ -434,7 +449,9 @@ static void action(int command)
             FILE *demo;
             char buf[LINE_LEN];
             int n, len;
-            demo = fopen("C:\\TTBASIC\\OODEMO.BAS", "r");
+            demo = fopen(command==ACT_FLOW ? "C:\\TTBASIC\\FLOW.BAS" :
+                command==ACT_POLY ? "C:\\TTBASIC\\POLY.BAS" :
+                command==ACT_INPUT ? "C:\\TTBASIC\\INPUT.BAS" : "C:\\TTBASIC\\OODEMO.BAS", "r");
             if (!demo) { strcpy(status, tr(T_DEMO_MISSING)); break; }
             remember(); memset(source, 0, sizeof(source)); n = 0;
             while (n < MAX_LINES && fgets(buf, sizeof(buf), demo)) {
@@ -580,6 +597,7 @@ int main(void)
     wind_open(window, dx, dy, dw, dh);
     strcpy(documents[0].path, SOURCE); documents[0].count = 1;
     basic_set_reader(cached_file);
+    basic_set_input(runtime_input); basic_set_poll(runtime_poll);
     open_source(); layout(); graf_mouse(ARROW, 0L); done = 0;
     menus_state(0, 0, show_tree, props, show_output);
     while (!done) {

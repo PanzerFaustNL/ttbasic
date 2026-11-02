@@ -1,13 +1,18 @@
 #ifndef TT_BASIC_H
 #define TT_BASIC_H
-#define MAX_LINES 64
-#define LINE_LEN 96
+#define MAX_LINES 256
+#define LINE_LEN 160
 #define OUT_LINES 10
 #define OUT_LEN 80
 #define BASIC_FILES 16
 #define BASIC_PATH 160
 typedef char (*BasicSource)[LINE_LEN];
 typedef BasicSource (*BasicReader)(char *path, int *count);
+typedef int (*BasicInput)(char *prompt, char *buffer, int capacity);
+typedef int (*BasicPoll)(void);
+void basic_set_input(BasicInput reader);
+void basic_set_poll(BasicPoll reader);
+int basic_is_reserved(char *name);
 void basic_set_reader(BasicReader reader);
 int basic_run(char source[MAX_LINES][LINE_LEN], int count,
               char output[OUT_LINES][OUT_LEN], int *used);

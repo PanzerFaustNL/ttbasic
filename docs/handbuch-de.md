@@ -1,4 +1,4 @@
-# TT BASIC Studio 0.3 — Deutsches Handbuch
+# TT BASIC Studio 0.4 — Deutsches Handbuch
 
 TT BASIC Studio verbindet einen BASIC-Interpreter mit einer GEM-Entwicklungsumgebung für den Atari TT. Sowohl die IDE als auch das BASIC-Programm laufen auf dem Atari selbst. Diese Version wurde mit Pure C erstellt und in Hatari mit TOS 3.06, TT Medium (640 × 480, 16 Farben), 8 MiB ST-RAM und 256 MiB TT-RAM getestet. Tests auf einem physischen Atari TT stehen noch aus.
 
@@ -129,7 +129,7 @@ Print "Summe: "; 2 + 3; "!"
 Print
 ```
 
-Semikolons verbinden Elemente auf **einer Ausgabezeile**, ohne Leerzeichen hinzuzufügen. Gewünschte Leerzeichen gehören in das Textliteral. Jede Print-Anweisung beendet die Zeile, auch bei abschließendem Semikolon. Eine Ausgabezeile enthält höchstens 79 Zeichen. Zeichenketten sind bisher nur als Literale in Print verfügbar. Stringvariablen, Verkettung mit + und Escape-Sequenzen für Anführungszeichen fehlen noch.
+Semikolons verbinden Elemente auf **einer Ausgabezeile**, ohne Leerzeichen hinzuzufügen. Gewünschte Leerzeichen gehören in das Textliteral. Jede Print-Anweisung beendet die Zeile, auch bei abschließendem Semikolon. Eine Ausgabezeile enthält höchstens 79 Zeichen. Stringvariablen werden mit `Dim text As String` deklariert. Zwei Strings lassen sich mit `&` oder `+` verketten. Eingebettete Anführungszeichen verdoppeln: `"Ein ""Zitat"""`. Ein String enthält höchstens 127 Zeichen.
 
 ## 5. Imports: externe Dateien einbinden
 
@@ -188,7 +188,7 @@ End Class
 
 ### Felder und Sichtbarkeit
 
-value ist ein numerisches Feld, das in jeder Instanz getrennt gespeichert wird. Felder beginnen mit null oder mit einem ganzzahligen Literal wie `Public Value As Integer = 10`. Public erlaubt Zugriff von außerhalb der Klasse. Private erlaubt Zugriff nur innerhalb von Methoden derselben Klasse. Sichtbarkeit ausdrücklich angeben; ohne Angabe ist ein Mitglied in dieser Version öffentlich.
+value ist ein numerisches Feld, das in jeder Instanz getrennt gespeichert wird. Felder können auch Strings, Boolean-Werte sowie Objekt- und Collection-Referenzen enthalten. Felder beginnen mit null oder mit einem ganzzahligen Literal wie `Public Value As Integer = 10`. Public erlaubt Zugriff von außerhalb der Klasse. Private erlaubt Zugriff nur innerhalb von Methoden derselben Klasse. Sichtbarkeit ausdrücklich angeben; ohne Angabe ist ein Mitglied in dieser Version öffentlich.
 
 Direkter Zugriff auf first.value ist bei dieser Klasse somit ein Fehler. Stattdessen first.GetValue() verwenden. Öffentliche Felder können gelesen und beschrieben werden, beispielsweise first.Value = 42 bei einem öffentlichen Value-Feld.
 
@@ -230,13 +230,13 @@ counter = New Counter(5)
 counter = Nothing
 ```
 
-Eine Objektvariable ohne New beginnt als Nothing. Mitglieder vor der Objekterzeugung anzusprechen ist ein Fehler. Eine Objektvariable akzeptiert nur Nothing oder eine Instanz der deklarierten Klasse. Eine Instanz einer anderen Klasse kann nicht zugewiesen werden.
+Eine Objektvariable ohne New beginnt als Nothing. Mitglieder vor der Objekterzeugung anzusprechen ist ein Fehler. Eine Objektvariable akzeptiert Nothing oder eine mit der deklarierten Klasse bzw. dem Interface kompatible Instanz, einschließlich abgeleiteter Klassen. Eine Instanz einer anderen Klasse kann nicht zugewiesen werden.
 
 Objekte bleiben bis zum Ende eines Laufs reserviert. Nothing entfernt eine Referenz, gibt in dieser Version aber keinen Objektplatz frei. Jeder F5-Lauf beginnt mit einem leeren Objektpool.
 
 ## 7. Subs, Functions und Parameter
 
-Eine Sub führt Aktionen aus und gibt keinen Wert zurück. Eine Function liefert mit **Return** eine Zahl zurück. Beide sind als Klassenmethoden oder globale Prozeduren möglich, auch in Importdateien.
+Eine Sub führt Aktionen aus und gibt keinen Wert zurück. Eine Function liefert mit **Return** einen typisierten Wert zurück. Beide sind als Klassenmethoden oder globale Prozeduren möglich, auch in Importdateien.
 
 ```vb
 Sub ShowNumber(value As Integer)
@@ -252,9 +252,9 @@ Call ShowNumber(Square(6))
 End
 ```
 
-Call ist optional; ShowNumber(36) funktioniert ebenfalls. Argumente stehen in Klammern. Maximal vier numerische Parameter werden als Werte übergeben. Die Anzahl muss exakt passen. Integer oder Long verwenden; Objekt- und Stringparameter fehlen noch.
+Call ist optional; ShowNumber(36) funktioniert ebenfalls. Argumente stehen in Klammern. Maximal acht typisierte Parameter werden unterstützt. Zahlen und Strings werden als Werte übergeben, Objekte, Arrays und Collections als gemeinsame Referenzen. Anzahl und Typen müssen passen. Typen sind Integer/Long, Boolean, String, Variant, Object, Collection sowie Klassen und Interfaces. Arrayparameter werden als `items() As Integer` deklariert.
 
-Eine Function muss einen numerischen Wert mit Return zurückgeben. Eine Zuweisung an den Funktionsnamen ersetzt Return nicht. Eine Sub kann mit Return ohne Wert oder Exit Sub vorzeitig beendet werden. Eine Sub in einer Berechnung zu verwenden ist ein Fehler. Ein alleinstehendes End beendet das Hauptprogramm und darf innerhalb einer Methode nicht als Ersatz für Return verwendet werden.
+Eine Function muss mit Return einen Wert des deklarierten Ergebnistyps zurückgeben. Eine Zuweisung an den Funktionsnamen ersetzt Return nicht. Eine Sub kann mit Return ohne Wert oder Exit Sub vorzeitig beendet werden. Eine Sub in einer Berechnung zu verwenden ist ein Fehler. Ein alleinstehendes End beendet das Hauptprogramm und darf innerhalb einer Methode nicht als Ersatz für Return verwendet werden.
 
 ## 8. Fehlermeldungen verstehen
 
@@ -275,7 +275,7 @@ Leere Zeilen und Kommentare zählen mit. Der Editor markiert die betroffene Zeil
 | `Object is Nothing` | Objekt zuerst mit New erzeugen |
 | `Wrong number of method arguments` | Konstruktor- oder Methodensignatur |
 | `Object Class does not match` | Objekt muss zur deklarierten Klasse passen |
-| `Function finished without Return` | Numerische Return-Anweisung ergänzen |
+| `Function finished without Return` | Return des Ergebnistyps ergänzen |
 | `Sub cannot be used as an expression` | Für einen Rückgabewert eine Function verwenden |
 | `Unknown variable` | Deklaration, Schreibweise und Gültigkeitsbereich |
 | `Division by zero` | Divisor darf nicht null sein |
@@ -287,25 +287,197 @@ Leere Zeilen und Kommentare zählen mit. Der Editor markiert die betroffene Zeil
 | Bestandteil | Grenze |
 | --- | --- |
 | Projektdateien einschließlich MAIN.BAS | 16 |
-| Zeilen pro Datei | 64 |
-| Insgesamt geladene Quellzeilen | 512 |
-| Zeichen pro Quellzeile | 95, ASCII |
+| Zeilen pro Datei | 256 |
+| Insgesamt geladene Quellzeilen | 2048 |
+| Zeichen pro Quellzeile | 159, ASCII |
 | Länge eines Bezeichners | 23 Zeichen |
-| Klassen | 8 |
-| Numerische Felder pro Klasse | 8 |
-| Klassenmethoden und globale Prozeduren zusammen | 32 |
-| Objektinstanzen pro Lauf | 32 |
-| Variablen pro globalem/lokalem Bereich | 48 |
-| Parameter pro Methode/Prozedur | 4, numerisch |
+| Klassen | 16 |
+| Numerische Felder pro Klasse | 16 |
+| Klassenmethoden und globale Prozeduren zusammen | 64 |
+| Objektinstanzen pro Lauf | 64 |
+| Variablen pro globalem/lokalem Bereich | 64 |
+| Parameter pro Methode/Prozedur | 8, typisiert |
 | Verschachtelte Methodenaufrufe | 8 |
 | Verschachtelte Ausdrücke | 16 |
 | Zahlenbereich | −1.000.000 bis +1.000.000 |
 | Zeichen pro Ausgabezeile | 79 |
 
-Noch nicht implementiert sind If/Then, While/Wend, For/Next, interaktive Eingaben, Arrays, Stringvariablen, Vererbung, Interfaces, Polymorphie, Überladung, Objektfelder/Objektparameter, automatische Speicherbereinigung und der visuelle Formular-Designer. Der Interpreter erzeugt noch keine eigenständigen PRG-Dateien aus BASIC-Programmen. Vorhandene VB-Programme müssen an diese unterstützte Teilmenge angepasst werden.
+Noch nicht implementiert sind mehrdimensionale Arrays, generische Collections, Überladung, automatische Speicherbereinigung, Ausnahmebehandlung und der visuelle Formular-Designer. BASIC wird noch nicht in eigenständige PRG-Dateien übersetzt. Dies ist ein eigener BASIC-Dialekt, keine vollständige VB-Implementierung.
 
 ## 10. Projektquellcode
 
 Die IDE steht in src/IDE.C, der Interpreter in src/BASIC.C. Native Menüs werden in src/MENU.C und Übersetzungen in src/LANG.C implementiert. Pure-C-Projekt- und Linkerdateien liegen unter atari/. BASIC-Beispiele aus examples/ nach C:\TTBASIC kopieren, um sie auf dem Atari zu verwenden.
 
 Bei einer Fehlermeldung im GitHub-Repository bitte die Studio-Version, ein minimales BASIC-Beispiel, die vollständige Meldung und die verwendete Plattform angeben: Hatari oder physische Atari-Hardware.
+
+## 11. Version 0.4: Kontrollstrukturen und Daten
+
+**Projekt → Sprachbeispiel laden**, **Polymorphie-Beispiel laden** oder **Eingabebeispiel laden** wählen und F5 drücken. Die Dateien heißen FLOW.BAS, POLY.BAS und INPUT.BAS. POLY verwendet zusätzlich ANIMAL.BAS, DOG.BAS und ISHOW.BAS.
+
+### If, ElseIf und Else
+
+```vb
+Dim age As Integer = 21
+If age < 12 Then
+    Print "Child"
+ElseIf age < 18 Then
+    Print "Junior"
+Else
+    Print "Adult"
+End If
+```
+
+Blöcke dürfen verschachtelt werden. Die Kurzform erlaubt eine Anweisung pro Zweig: `If age >= 18 Then Print "Adult" Else Print "Junior"`. Für verschachtelte Bedingungen die Blockform verwenden.
+
+Boolean kennt True (-1) und False (0). And, Or, Xor und Not arbeiten mit Wahrheitswerten. Beide Seiten von And/Or werden ausgewertet. Wenn die zweite Bedingung nur unter einer Voraussetzung sicher ist, verschachtelte If-Blöcke benutzen.
+
+### While und Do
+
+```vb
+Dim t As Integer
+While t < 3
+    Print t
+    t = t + 1
+Wend
+
+Do
+    t = t - 1
+Loop Until t = 0
+```
+
+End While kann Wend ersetzen. Bei Do darf eine While- oder Until-Bedingung entweder auf der Do- oder auf der Loop-Zeile stehen, nicht an beiden Stellen. Eine Bedingung am Anfang kann die erste Ausführung verhindern; eine am Ende wird nach dem Durchlauf geprüft. Eine einfache Do/Loop-Schleife lässt sich mit Exit Do verlassen.
+
+### For und For Each
+
+```vb
+Dim total As Integer
+For i As Integer = 6 To 1 Step -1
+    total = total + i
+Next i
+Print total
+```
+
+Der Endwert ist eingeschlossen. Step ist standardmäßig 1 und darf negativ sein, aber nicht null. Start, Ende und Schritt werden beim Eintritt berechnet. Next darf den passenden Variablennamen enthalten. Der Zähler muss numerisch sein.
+
+```vb
+Dim names(1) As String
+names(0) = "Atari"
+names(1) = "TT"
+For Each name As String In names
+    Print name
+Next name
+```
+
+For Each durchläuft Arrays und Collections. Eine neue Schleifenvariable ohne As ist Variant. Eine typisierte Variable prüft jedes Element. Exit For/While/Do verlässt die jeweilige Schleife; Continue For/While/Do geht zum nächsten Durchlauf. Dies funktioniert auch innerhalb verschachtelter If-Blöcke, kann aber nicht aus einem anderen Methodenaufruf herausführen.
+
+### Select Case
+
+```vb
+Dim score As Integer = 7
+Select Case score
+Case 0, 1
+    Print "Low"
+Case 2 To 7
+    Print "Middle"
+Case Is >= 8
+    Print "High"
+Case Else
+    Print "Other"
+End Select
+```
+
+Der Auswahlwert wird einmal berechnet. Nur der erste passende Zweig wird ausgeführt; es gibt kein Durchfallen zum nächsten Case. Case Else muss zuletzt stehen. Zahlen und Strings werden unterstützt; Stringvergleiche unterscheiden Groß- und Kleinschreibung. Exit Select verlässt den aktuellen Select-Block.
+
+### Arrays und Collections
+
+`Dim values(2) As Integer` erzeugt drei Elemente mit den Indizes 0, 1 und 2. `Dim values(1 To 3) As Integer` verwendet Grenzen 1 bis 3. Lesen und Zuweisen erfolgen mit `values(1)`. LBound und UBound liefern die Grenzen, Count oder `.Count` die Elementzahl.
+
+```vb
+Dim values() As Integer
+ReDim values(1)
+values(1) = 42
+ReDim Preserve values(3)
+Print values(1)
+```
+
+ReDim ersetzt ein dynamisches Array. Preserve erhält bestehende Elemente; die Untergrenze darf dabei nicht geändert werden. `Array(1, 2, 3)` erzeugt ein Variant-Array. Arrays sind eindimensional und enthalten maximal 128 Elemente. Zuweisungen und Parameterübergaben teilen die Referenz. ReDim weist der Variablen ein neues Array zu; andere Referenzen zeigen weiter auf das alte.
+
+```vb
+Dim values As New Collection
+values.Add("TT")
+values.Add(42)
+Print values.Item(1)
+Print values(2)
+Print values.Count
+values.Remove(1)
+values.Clear()
+```
+
+Collections sind geordnet, untypisiert und beginnen bei Index 1. Add hängt an, Remove entfernt einen Index und Clear leert den Inhalt. Maximal 128 Werte einschließlich Objekten sind möglich. Die Größe während For Each zu verändern verursacht einen Fehler; die Schleife zuerst verlassen. Pro Lauf stehen 32 Array-/Collection-Allokationen einschließlich ReDim zur Verfügung. Speicher wird während eines Laufs noch nicht freigegeben.
+
+### Strings und Eingabe
+
+Stringvariablen, Stringparameter und Stringergebnisse werden unterstützt. Hilfsfunktionen: Len, CStr/Str, CInt/Val, Left, Right, Mid, UCase, LCase und Abs. Mid zählt ab Position 1. CInt/Val erwarten einen vollständig gültigen ganzzahligen Text im erlaubten Bereich. Mod liefert den Rest einer ganzzahligen Division.
+
+```vb
+Dim name As String
+Input "Your name?"; name
+Dim age As Integer
+Input "Your age?"; age
+Print "Hello " & name
+Print age + 1
+```
+
+Input öffnet in der IDE einen GEM-Dialog. Das Eingabefeld akzeptiert 63 Zeichen, Stringwerte in der Sprache bis zu 127. Ungültige Zahleneingaben oder Abbrechen beenden den Lauf mit einer Meldung. Eine Variant-Zielvariable erhält nach Möglichkeit eine Zahl, sonst einen String; enthält sie bereits einen String, wird weiter Text eingelesen.
+
+## 12. Vererbung, Interfaces und Polymorphie
+
+Eine Klasse kann eine Basisklasse besitzen. Inherits Animal steht innerhalb der Klasse oder auf der Class-Kopfzeile. Public-Mitglieder sind von außen zugänglich, Private nur in ihrer definierenden Klasse und Protected zusätzlich in abgeleiteten Klassen.
+
+```vb
+Class Animal
+    Public Overridable Function Speak() As String
+        Return "animal"
+    End Function
+End Class
+
+Class Dog
+    Inherits Animal
+    Public Overrides Function Speak() As String
+        Return "woof"
+    End Function
+End Class
+
+Dim actor As Animal = New Dog
+Print actor.Speak()
+```
+
+Die Ausgabe ist woof. Die Variable ist als Animal deklariert, enthält jedoch einen Dog. Die Basismethode benötigt Overridable, die Ersetzung Overrides. Name, Parameter- und Ergebnistypen müssen passen. Die öffentliche Sichtbarkeit darf nicht eingeschränkt werden. MyBase ruft die Basisimplementierung direkt auf.
+
+Ein abgeleiteter Konstruktor kann als erste ausführbare Anweisung `MyBase.New(...)` verwenden. Andernfalls wird der parameterlose Basiskonstruktor automatisch aufgerufen. Benötigt dieser Argumente, müssen sie ausdrücklich übergeben werden. POLY.BAS zeigt ein vollständiges Beispiel.
+
+```vb
+Interface IShow
+    Function Speak() As String
+End Interface
+```
+
+Eine Klasse erklärt Implements IShow und stellt eine öffentliche Methode mit gleichem Namen und gleicher Signatur bereit. Interfaces enthalten nur Signaturen, ohne End Function/End Sub pro Mitglied. End Interface schließt den Vertrag ab. Ein Interface kann nicht mit New erzeugt werden. Eine Interfacevariable kann Objekte beliebiger implementierender Klassen enthalten; Aufrufe erreichen die konkrete Implementierung.
+
+Eine ausdrückliche Zuordnung zu einem anderen Methodennamen ist ebenfalls möglich:
+
+```vb
+Public Function Display() As String Implements IShow.Speak
+    Return "shown"
+End Function
+```
+
+Diese Methode gehört in eine Klasse mit Implements IShow. Eine Klasse kann bis zu vier durch Kommas getrennte Interfaces direkt implementieren. Geerbte Verträge werden übernommen und geprüft. Ein Interface kann ein anderes Interface erben. Fehlende oder abweichende Implementierungen werden vor der Ausführung abgewiesen.
+
+`TypeOf actor Is Dog` prüft den tatsächlichen Typ. `actor Is other` und `actor IsNot Nothing` vergleichen Objektreferenzen. Klassen und Interfaces sind als Parameter-, Ergebnis- und Arrayelementtypen möglich. Object ist ein allgemeiner Objektreferenztyp. Variant kann Zahlen, Strings, Objekte und Container enthalten.
+
+## 13. Reservierte Wörter und Ausführungsgrenzen
+
+Eine zentrale Liste verhindert, dass implementierte Sprachschlüsselwörter als Namen deklariert werden. Dazu gehören Kontrollstrukturen, Typen, Sichtbarkeit, Objektwörter, logische Operatoren, True/False/Nothing und Input. New ist nur als Konstruktorname eine Ausnahme. Hilfsfunktionen wie Len und Count sind kontextabhängige Funktionsnamen und keine Sprachschlüsselwörter.
+
+Zusätzliche Grenzen in 0.4: zusammen 16 Klassen/Interfaces, 16 Felder je Klasse einschließlich geerbter Felder, 64 Methoden/Prozeduren, 64 Objektinstanzen, 64 Variablen pro Bereich, acht Parameter und 32 verschachtelte Blöcke. Arrays/Collections: 32 Allokationen mit jeweils höchstens 128 Elementen. Strings: 127 Zeichen. Nach 1.000.000 Schritten wird die Ausführung begrenzt. Während eines laufenden Programms mit **Escape** vorzeitig abbrechen; im Eingabedialog Abbrechen verwenden. Die Pure-C-Version verwendet einen Stack von 512 KiB.

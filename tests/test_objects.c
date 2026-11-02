@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     bad("PRINT 9999999999999999999999999","exceeds 1000000");
     bad("PRINT (((((((((((((((((1)))))))))))))))))","nested too deeply");
     ok("Dim Total As Integer = 42\nPrint Total", "42");
-    bad("Dim x As String", "Unknown variable type");
+    ok("Dim x As String = \"hello\"\nPrint x", "hello");
     bad("Dim value As Integer\nDim VALUE As Integer", "Duplicate variable");
     file("COUNTER.BAS", "Class Counter\nPrivate value As Integer = 1\nPublic Sub New(start As Integer)\nMe.value=start\nEnd Sub\nPublic Sub Add(amount As Integer)\nMe.value=Me.value+amount\nEnd Sub\nPublic Function GetValue() As Integer\nReturn Me.value\nEnd Function\nEnd Class\n");
     ok("Imports \"COUNTER.BAS\"\nDim first As New Counter(10)\nDim second As New Counter(2)\nfirst.Add(5)\nPrint first.GetValue()\nPrint second.GetValue()", "15");
@@ -73,8 +73,8 @@ int main(int argc, char **argv) {
     ok("Imports \"MATH.BAS\"\nCall Say(Double(21))", "42");
     bad("Imports \"MATH.BAS\"\nPrint Double(1,2)", "Wrong number");
     bad("PRINT Me.Value", "Me is only valid");bad("RETURN 2", "Return is only valid");
-    file("LOOP.BAS","Function Loop() As Integer\nReturn Loop()\nEnd Function\n");
-    bad("Imports \"LOOP.BAS\"\nPrint Loop()", "call depth");
+    file("LOOP.BAS","Function Recurse() As Integer\nReturn Recurse()\nEnd Function\n");
+    bad("Imports \"LOOP.BAS\"\nPrint Recurse()", "call depth");
     file("NORETURN.BAS","Function Test() As Integer\nPRINT 1\nEnd Function\n");
     bad("Imports \"NORETURN.BAS\"\nPRINT Test()", "without Return");
     file("ERROR.BAS","Class Broken\nPublic Sub Crash()\nPrint 1/0\nEnd Sub\nEnd Class\n");

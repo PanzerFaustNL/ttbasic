@@ -1,4 +1,4 @@
-# TT BASIC Studio 0.3 — English manual
+# TT BASIC Studio 0.4 — English manual
 
 TT BASIC Studio combines a BASIC interpreter with a GEM development environment for the Atari TT. Both the IDE and your BASIC program run on the Atari itself. This version was built with Pure C and tested in Hatari with TOS 3.06, TT Medium (640 × 480, 16 colours), 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT hardware testing is still pending.
 
@@ -129,7 +129,7 @@ Print "Sum: "; 2 + 3; "!"
 Print
 ```
 
-Semicolons combine items on **one output line**, without adding spaces. Include required spaces inside string literals. Each Print ends the line, even with a trailing semicolon. Output lines are limited to 79 characters. Strings currently exist only as literals in Print; string variables, concatenation using `+`, and escaped quote sequences are not implemented.
+Semicolons combine items on **one output line**, without adding spaces. Include required spaces inside string literals. Each Print ends the line, even with a trailing semicolon. Output lines are limited to 79 characters. Declare string variables with `Dim text As String`. Concatenate two strings with `&` or `+`. Double embedded quotes, for example `"A ""quote"""`. Strings hold at most 127 characters.
 
 ## 5. Imports and external source files
 
@@ -188,7 +188,7 @@ End Class
 
 ### Fields and visibility
 
-`value` is a numeric field stored separately in each instance. Fields start at zero, or at an integer literal default such as `Public Value As Integer = 10`. Public members are accessible from outside the class. Private members can only be accessed from methods of the same class. Declare visibility explicitly; members default to public in this implementation.
+`value` is a numeric field stored separately in each instance. Fields can also contain strings, booleans and object or collection references. Fields start at zero, or at an integer literal default such as `Public Value As Integer = 10`. Public members are accessible from outside the class. Private members can only be accessed from methods of the same class. Declare visibility explicitly; members default to public in this implementation.
 
 Direct access to `first.value` is therefore an error for the example class. Use `first.GetValue()`. Public fields support both reads and assignments, such as `first.Value = 42` for a public Value field.
 
@@ -230,13 +230,13 @@ counter = New Counter(5)
 counter = Nothing
 ```
 
-An object variable declared without New starts as Nothing. Accessing its members before construction is an error. An object variable accepts only Nothing or an instance of its declared class. Assigning an object of another class is rejected.
+An object variable declared without New starts as Nothing. Accessing its members before construction is an error. An object variable accepts Nothing or an instance compatible with its declared class or interface, including derived classes. Assigning an object of another class is rejected.
 
 Objects remain allocated until the end of the run. Assigning Nothing removes a reference but does not reclaim an object slot in this version. Each F5 run starts with a fresh object pool.
 
 ## 7. Subs, Functions and parameters
 
-A Sub performs actions without returning a value. A Function returns a number using **Return**. Both can be class methods or global procedures, including definitions in imported files.
+A Sub performs actions without returning a value. A Function returns a typed value using **Return**. Both can be class methods or global procedures, including definitions in imported files.
 
 ```vb
 Sub ShowNumber(value As Integer)
@@ -252,9 +252,9 @@ Call ShowNumber(Square(6))
 End
 ```
 
-Call is optional: `ShowNumber(36)` also works. Arguments must be enclosed in parentheses. Up to four numeric parameters are passed by value, and argument counts must match exactly. Use Integer or Long; object and string parameters are not supported yet.
+Call is optional: `ShowNumber(36)` also works. Arguments must be enclosed in parentheses. Up to eight typed parameters are supported. Numbers and strings are passed by value; objects, arrays and collections share references. Argument types and counts must match. Types include Integer/Long, Boolean, String, Variant, Object, Collection, classes and interfaces. Declare array parameters as `items() As Integer`.
 
-Functions must return a numeric value. Assigning to the function name is not a substitute for Return. A Sub can return early with a bare Return or Exit Sub. Using a Sub as part of an expression is an error. A standalone End terminates the main program and cannot replace Return inside a method.
+Functions must return a value matching their declared result type. Assigning to the function name is not a substitute for Return. A Sub can return early with a bare Return or Exit Sub. Using a Sub as part of an expression is an error. A standalone End terminates the main program and cannot replace Return inside a method.
 
 ## 8. Understanding errors
 
@@ -275,7 +275,7 @@ Line numbers include blank lines and comments. The editor highlights the relevan
 | `Object is Nothing` | Construct the object with New first |
 | `Wrong number of method arguments` | Constructor or method signature |
 | `Object Class does not match` | Object must match the declared class |
-| `Function finished without Return` | Add a numeric Return |
+| `Function finished without Return` | Add a Return matching the result type |
 | `Sub cannot be used as an expression` | Use a Function when a result is required |
 | `Unknown variable` | Declaration, spelling and scope |
 | `Division by zero` | Divisor must not be zero |
@@ -287,25 +287,197 @@ Line numbers include blank lines and comments. The editor highlights the relevan
 | Item | Limit |
 | --- | --- |
 | Project files, including MAIN.BAS | 16 |
-| Lines per file | 64 |
-| Total loaded source lines | 512 |
-| Characters per source line | 95, ASCII |
+| Lines per file | 256 |
+| Total loaded source lines | 2048 |
+| Characters per source line | 159, ASCII |
 | Identifier length | 23 characters |
-| Classes | 8 |
-| Numeric fields per class | 8 |
-| Class methods plus global procedures | 32 |
-| Object instances per run | 32 |
-| Variables per global/local scope | 48 |
-| Parameters per method/procedure | 4, numeric |
+| Classes | 16 |
+| Numeric fields per class | 16 |
+| Class methods plus global procedures | 64 |
+| Object instances per run | 64 |
+| Variables per global/local scope | 64 |
+| Parameters per method/procedure | 8, typed |
 | Nested method calls | 8 |
 | Nested expressions | 16 |
 | Numeric range | −1,000,000 to +1,000,000 |
 | Characters per output line | 79 |
 
-Not yet implemented: If/Then, While/Wend, For/Next, interactive input, arrays, string variables, inheritance, interfaces, polymorphism, overloading, object fields/object parameters, garbage collection and the visual form designer. The interpreter does not compile BASIC programs into standalone PRG files. Existing VB programs must be adapted to this supported subset.
+Not yet implemented: multidimensional arrays, generic collections, overloading, garbage collection, exception handling and the visual form designer. BASIC programs are not compiled to standalone PRG files. This is its own BASIC dialect rather than a complete VB implementation.
 
 ## 10. Project source layout
 
 `src/IDE.C` implements the IDE; `src/BASIC.C` implements the interpreter. Native menus live in `src/MENU.C`, translations in `src/LANG.C`. Pure C project and linker files are in `atari/`. Copy BASIC examples from `examples/` into C:\TTBASIC for use on the Atari.
 
 When reporting a problem in the GitHub repository, include the Studio version, a minimal BASIC example, the complete diagnostic and whether you use Hatari or physical Atari hardware.
+
+## 11. Version 0.4: control flow and data
+
+Use **Project → Load language example**, **Load polymorphism example** or **Load input example**, followed by F5. These load FLOW.BAS, POLY.BAS and INPUT.BAS. The polymorphism example also uses ANIMAL.BAS, DOG.BAS and ISHOW.BAS.
+
+### If, ElseIf and Else
+
+```vb
+Dim age As Integer = 21
+If age < 12 Then
+    Print "Child"
+ElseIf age < 18 Then
+    Print "Junior"
+Else
+    Print "Adult"
+End If
+```
+
+Blocks can be nested. An inline form supports one statement per branch: `If age >= 18 Then Print "Adult" Else Print "Junior"`. Use block syntax for nested conditions.
+
+Boolean values are True (-1) and False (0). And, Or, Xor and Not operate on truth values. Both operands of And/Or are evaluated; use nested If blocks when the second expression is only safe under a condition.
+
+### While and Do
+
+```vb
+Dim t As Integer
+While t < 3
+    Print t
+    t = t + 1
+Wend
+
+Do
+    t = t - 1
+Loop Until t = 0
+```
+
+End While is an alternative to Wend. Do supports a While or Until condition either on the Do line or on the Loop line, but not both. A precondition may skip the first iteration; a postcondition is checked after an iteration. A plain Do/Loop can be terminated with Exit Do.
+
+### For and For Each
+
+```vb
+Dim total As Integer
+For i As Integer = 6 To 1 Step -1
+    total = total + i
+Next i
+Print total
+```
+
+The end value is inclusive. Step defaults to 1 and may be negative, but not zero. Start, end and step are evaluated on entry. Next may include the matching variable name. Use a numeric counter.
+
+```vb
+Dim names(1) As String
+names(0) = "Atari"
+names(1) = "TT"
+For Each name As String In names
+    Print name
+Next name
+```
+
+For Each iterates over arrays and collections. A new iterator without As is Variant; a typed iterator checks every element. Exit For/While/Do exits a loop; Continue For/While/Do advances to its next iteration. These also work inside nested If blocks and cannot escape from a different method invocation.
+
+### Select Case
+
+```vb
+Dim score As Integer = 7
+Select Case score
+Case 0, 1
+    Print "Low"
+Case 2 To 7
+    Print "Middle"
+Case Is >= 8
+    Print "High"
+Case Else
+    Print "Other"
+End Select
+```
+
+The selector is evaluated once. Only the first matching branch runs; there is no fall-through. Case Else must be last. Numeric and case-sensitive string comparisons are supported. Exit Select leaves the current Select block.
+
+### Arrays and collections
+
+`Dim values(2) As Integer` allocates three elements indexed 0, 1 and 2. `Dim values(1 To 3) As Integer` uses bounds 1 through 3. Read or assign using `values(1)`. LBound and UBound return bounds; Count or `.Count` returns the number of elements.
+
+```vb
+Dim values() As Integer
+ReDim values(1)
+values(1) = 42
+ReDim Preserve values(3)
+Print values(1)
+```
+
+ReDim replaces a dynamic array. Preserve retains existing elements and cannot change the lower bound. `Array(1, 2, 3)` creates a Variant array. Arrays are one-dimensional and hold at most 128 elements. Assignment and parameter passing share their reference. ReDim assigns a new array to its variable; other references still point to the old array.
+
+```vb
+Dim values As New Collection
+values.Add("TT")
+values.Add(42)
+Print values.Item(1)
+Print values(2)
+Print values.Count
+values.Remove(1)
+values.Clear()
+```
+
+Collections are ordered, untyped and indexed from 1. Add appends, Remove removes an index, and Clear empties the collection. Up to 128 values, including objects, are supported. Structurally modifying a collection during For Each raises an error; exit the loop first. Each run permits 32 array/collection allocations, including ReDim; storage is not reclaimed during a run.
+
+### Strings and input
+
+String variables, parameters and results are supported. Available helpers are Len, CStr/Str, CInt/Val, Left, Right, Mid, UCase, LCase and Abs. Mid positions start at 1. CInt/Val require an entirely valid integer within the supported range. Mod returns an integer division remainder.
+
+```vb
+Dim name As String
+Input "Your name?"; name
+Dim age As Integer
+Input "Your age?"; age
+Print "Hello " & name
+Print age + 1
+```
+
+Input opens a GEM dialog in the IDE. Its field accepts 63 characters; language String values can contain 127. Invalid numeric input or Cancel stops execution with a diagnostic. A Variant target becomes numeric when conversion succeeds, otherwise String; a Variant already holding a String continues to receive text.
+
+## 12. Inheritance, interfaces and polymorphism
+
+A class may have one base class, using Inherits Animal inside the class or on its Class header. Public members are accessible externally, Private members only inside their defining class, and Protected members also inside derived classes.
+
+```vb
+Class Animal
+    Public Overridable Function Speak() As String
+        Return "animal"
+    End Function
+End Class
+
+Class Dog
+    Inherits Animal
+    Public Overrides Function Speak() As String
+        Return "woof"
+    End Function
+End Class
+
+Dim actor As Animal = New Dog
+Print actor.Speak()
+```
+
+This prints woof. The variable is declared as Animal but refers to a Dog. Mark the base method Overridable and its replacement Overrides. Names, parameter types and result types must match. Public visibility cannot be reduced. MyBase calls the base implementation directly.
+
+A derived constructor may call `MyBase.New(...)` as its first executable statement. Otherwise the parameterless base constructor is called automatically. If the base constructor requires arguments, the derived constructor must pass them explicitly. POLY.BAS provides a complete working example.
+
+```vb
+Interface IShow
+    Function Speak() As String
+End Interface
+```
+
+A class declares Implements IShow and provides a public method with the same name and signature. Interfaces contain signatures only: no End Function/End Sub per member. End Interface closes the contract. Interfaces cannot be instantiated with New. An interface variable can hold any implementing class, and calls dispatch to the concrete implementation.
+
+Explicit mapping to another method name is also supported:
+
+```vb
+Public Function Display() As String Implements IShow.Speak
+    Return "shown"
+End Function
+```
+
+This method belongs inside a class declaring Implements IShow. A class can directly implement up to four comma-separated interfaces. Inherited contracts are included and validated. An interface can inherit one other interface. Missing or mismatched implementations are rejected before execution.
+
+`TypeOf actor Is Dog` checks the runtime type. `actor Is other` and `actor IsNot Nothing` compare object references. Classes and interfaces can be parameter types, result types and array element types. Object is a general object-reference type. Variant can contain numbers, strings, objects and containers.
+
+## 13. Reserved words and execution limits
+
+A central registry rejects implemented language keywords as declared names. It covers structural keywords, types, visibility, object keywords, logical operators, True/False/Nothing and Input. New is allowed only as a constructor name. Helpers such as Len and Count are contextual function names, not language keywords.
+
+Additional 0.4 limits: 16 classes/interfaces total, 16 fields per class including inherited fields, 64 methods/procedures, 64 object instances, 64 variables per scope, eight parameters and 32 nested blocks. Arrays/collections allow 32 allocations of up to 128 elements; strings hold 127 characters. Execution stops after 1,000,000 steps to bound runaway programs. Press **Escape** while a program runs to cancel sooner; use Cancel in an input dialog. The Pure C build uses a 512 KiB stack.

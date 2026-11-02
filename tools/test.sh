@@ -9,8 +9,14 @@ else
     sanitizer_flags=''
 fi
 # The .C extension means C++ to many host compilers: force ANSI C explicitly.
-${CC:-cc} -x c -std=c89 -Wall -Wextra -Wno-deprecated-declarations \
-    $sanitizer_flags -I "$repo_root/src" \
-    "$repo_root/tests/test_objects.c" "$repo_root/src/BASIC.C" \
-    -o "$test_dir/test_objects"
-"$test_dir/test_objects" "$test_dir/MAIN.BAS"
+for suite in test_objects test_language test_examples; do
+    ${CC:-cc} -x c -std=c89 -Wall -Wextra -Wno-deprecated-declarations \
+        $sanitizer_flags -I "$repo_root/src" \
+        "$repo_root/tests/$suite.c" "$repo_root/src/BASIC.C" \
+        -o "$test_dir/$suite"
+    if [ "$suite" = test_examples ]; then
+        "$test_dir/$suite" "$repo_root/examples"
+    else
+        "$test_dir/$suite" "$test_dir/MAIN.BAS"
+    fi
+done

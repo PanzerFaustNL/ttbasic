@@ -1,6 +1,6 @@
 # TT BASIC Studio
 
-A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.3** adds external source imports, classes, constructors, independent object instances, public/private members and methods. The IDE supports Dutch, English and German.
+A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.4** includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
 
 ## Manuals
 
@@ -28,7 +28,7 @@ Output: `42`, `2`. The imported [Counter class](examples/COUNTER.BAS) has a priv
 
 Start `C:\TTBASIC\TTBASIC.PRG` in TT Medium, or at least 640 × 480. Press F5 to run the project from MAIN.BAS. Imported modules appear in the project tree and can be edited directly. Runs use unsaved in-memory sources; F2 saves the active file and keeps a `.BAK` of its previous disk contents.
 
-Load the complete example with **Project → Load OO example**. In the initial Dutch UI this is **Project → OO-voorbeeld laden**. Choose the UI language under **Beeld / View / Ansicht → Nederlands / English / Deutsch**.
+Load examples with **Project → Load language example**, **Load polymorphism example**, **Load input example**, or **Load OO example**. Press Escape to stop a running program. In the initial Dutch UI this is **Project → OO-voorbeeld laden**. Choose the UI language under **Beeld / View / Ansicht → Nederlands / English / Deutsch**.
 
 ## Building on the Atari
 
@@ -41,7 +41,7 @@ Prerequisites: Atari TT or a compatible Hatari setup, TOS 3.06 and a separate Pu
 5. Set the include directory to `C:\PUREC\INCLUDE` and the library directory to `C:\PUREC\LIB` if your Pure C configuration does not already use them.
 6. Use **Project → Make**. The result is `C:\TTBASIC\TTBASIC.PRG`.
 
-The project uses a 64 KiB stack. Numeric calculations use bounded C longs and do not require floating-point libraries. The source and Atari project files use CRLF line endings for the original compiler. Git's attributes preserve this on checkout.
+The project uses a 512 KiB stack and the compiler option `-P` for absolute calls. Keep `-P` enabled: the program is too large for 16-bit PC-relative inter-module calls. Numeric calculations use bounded C longs and do not require floating-point libraries. The source and Atari project files use CRLF line endings for the original compiler. Git's attributes preserve this on checkout.
 
 On a modern host you can prepare a GEMDOS drive directory with:
 
@@ -60,18 +60,18 @@ A host C compiler is enough to test the interpreter:
 SANITIZE=1 ./tools/test.sh
 ```
 
-The suite covers arithmetic, imports, duplicate/circular dependencies, constructors, independent instances, aliasing, visibility, methods, errors and in-memory imported sources. The same interpreter suite has also been compiled with Pure C and run inside the emulated TT. Native GEM interaction, multi-file editing and UI languages are checked separately in Hatari.
+The suites cover the original object/import model, control flow, strings, input, array bounds, collections, inheritance, interface contracts, dynamic dispatch, cancellation and every shipped runnable example. The same interpreter suite has also been compiled with Pure C and run inside the emulated TT. Native GEM interaction, multi-file editing and UI languages are checked separately in Hatari.
 
 ## Current scope
 
 - Text editor, native menus, project/import tree, properties and output panels.
 - One fixed project entry point: `C:\TTBASIC\MAIN.BAS`.
-- Integer BASIC, procedures, functions, numeric fields and object references.
-- Up to 16 files, 64 lines per file and 512 loaded source lines.
-- Up to 8 classes, 32 object instances and 32 methods/procedures.
+- Integer and string BASIC, Boolean logic, procedures, functions, typed fields and object references.
+- Up to 16 files, 256 lines per file and 2048 loaded source lines.
+- Up to 16 classes/interfaces, 64 object instances and 64 methods/procedures.
 - BASIC is interpreted; the IDE itself is a native Atari PRG.
 
-Conditionals, loops, arrays, string variables, inheritance, object parameters and a visual form designer are future work. This is a small VB-inspired dialect, not a complete VB implementation. In this dialect Imports loads source files rather than VB namespaces. See the manuals for exact behaviour and limits.
+Implemented: If/ElseIf/Else, While/Wend/End While, For/Step/Next, For Each, Do/Loop, Select Case, Exit/Continue, typed arrays, ReDim Preserve, ordered collections, string helpers and Input through a GEM dialog. Inherits, Implements, Overridable/Overrides, Protected, MyBase, TypeOf and typed object/interface parameters support polymorphism. Multidimensional arrays, generic collections, overloads, garbage collection, exception handling and a visual form designer remain future work. Imports loads source files rather than VB namespaces. This is a bounded VB-inspired dialect, not the complete VB language.
 
 Validated in Hatari with TOS 3.06, TT Medium, 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT validation is pending.
 
