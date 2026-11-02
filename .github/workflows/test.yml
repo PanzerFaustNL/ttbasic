@@ -1,0 +1,15 @@
+name: Interpreter tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  interpreter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and test ANSI C interpreter
+        run: ./tools/test.sh
+      - name: Check memory and undefined behaviour
+        run: SANITIZE=1 ./tools/test.sh

@@ -1,0 +1,50 @@
+TT BASIC Studio 0.3
+===================
+
+NEDERLANDS
+Start C:\TTBASIC\TTBASIC.PRG.
+Project > OO-voorbeeld laden, daarna F5 voor het objectvoorbeeld.
+Imports "COUNTER.BAS" gebruikt de klasse uit een extern bestand.
+Klik links op een importbestand om het te bewerken.
+F5 start MAIN.BAS met de werkversies van alle geopende bestanden.
+F2 slaat het actieve bestand op en bewaart de vorige versie als .BAK.
+Beeld > Nederlands / English / Deutsch kiest de interfacetaal.
+
+ENGLISH
+Start C:\TTBASIC\TTBASIC.PRG.
+Project > Load OO example, then F5 runs the object example.
+Imports "COUNTER.BAS" loads a class from an external source file.
+Click an imported file in the project tree to edit it.
+F5 runs MAIN.BAS using the current contents of all open files.
+F2 saves the active file, preserving the previous version as .BAK.
+View > Nederlands / English / Deutsch selects the interface language.
+
+DEUTSCH
+C:\TTBASIC\TTBASIC.PRG starten.
+Projekt > OO-Beispiel laden, danach F5 fuer das Objektbeispiel.
+Imports "COUNTER.BAS" laedt eine Klasse aus einer externen Datei.
+Importdateien im Projektbaum anklicken, um sie zu bearbeiten.
+F5 startet MAIN.BAS mit den Arbeitsfassungen aller offenen Dateien.
+F2 speichert die aktive Datei mit .BAK-Sicherung der alten Version.
+Ansicht > Nederlands / English / Deutsch waehlt die Oberflaechensprache.
+
+F1 Help / Hilfe
+F2 Save / Opslaan / Speichern
+F3 Reload / Laden
+F4 Properties / Eigenschappen / Eigenschaften
+F5 Run / Uitvoeren / Starten
+F6 Find next / Volgende zoeken / Weitersuchen
+Ctrl+F Find / Zoeken / Suchen
+Ctrl+Z Undo (one step / een stap / ein Schritt)
+Ctrl+C/X/V Copy/cut/paste whole line / Hele regel / Ganze Zeile
+Ctrl+Q Quit / Afsluiten / Beenden
+
+Manuals / Handleidingen / Handbuecher:
+https://github.com/PanzerFaustNL/ttbasic/tree/main/docs
+
+64 lines per file, 95 ASCII chars per line; 16 files per project.
+Numeric values: -1000000 .. +1000000.
+Classes, constructors, Public/Private fields, Sub, Function and Return.
+No loops, conditionals, string variables or inheritance yet.
+No standalone BASIC compiler or form designer yet.
+Built and tested in Hatari / Pure C; physical TT validation pending.
