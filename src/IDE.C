@@ -16,6 +16,7 @@ static int window, vdi, wx, wy, ww, wh, cw, ch;
 static int row, col, first, leftcol, lines = 1, changed, props;
 static int editor_x, editor_y, editor_w, editor_h, cols, rows;
 static int out_used, error_line, done;
+static int output_height = 124;
 static int show_tree = 1, show_output = 1, tree_expanded = 1;
 static int undo_ready, undo_row, undo_col, undo_lines, undo_changed;
 static char undo_source[MAX_LINES][LINE_LEN];
@@ -127,7 +128,8 @@ static void layout(void)
     wind_get(window, WF_WORKXYWH, &wx, &wy, &ww, &wh);
     editor_x = wx + (show_tree ? 130 : 6); editor_y = wy + 64;
     editor_w = ww - (editor_x - wx) - 6 - (props ? 138 : 0);
-    editor_h = wh - 64 - (show_output ? 118 : 28);
+    output_height = maximum(56 + ch, minimum(output_height, wh - 64 - 3 * ch));
+    editor_h = wh - 64 - (show_output ? output_height : 28);
     cols = maximum(1, (editor_w - 40) / cw);
     rows = maximum(1, editor_h / ch);
     if (row < first) first = row;
@@ -184,7 +186,7 @@ static void paint(void)
 {
     int i, y, line, bottom, panel;
     char buf[100];
-    layout(); bottom = wy + wh - 118;
+    layout(); bottom = wy + wh - output_height;
     fill(wx, wy, ww, wh, 8);
     button(wx + 6, 94, tr(T_LOAD_BUTTON), 0);
     button(wx + 106, 112, tr(T_SAVE_BUTTON), 0);
@@ -244,12 +246,15 @@ static void paint(void)
         text(panel + 7, wy + 263, 1, changed ? tr(T_MODIFIED) : tr(T_SAVED), 118);
     }
     if (show_output) {
+        fill(editor_x, bottom, ww - (editor_x - wx) - 6, 6, 9);
+        fill(editor_x + (ww - (editor_x - wx) - 6) / 2 - 12, bottom + 2, 24, 2, 1);
+        bottom += 6;
         heading(editor_x, bottom, ww - (editor_x - wx) - 6, tr(T_OUTPUT));
-        fill(editor_x, bottom + 24, ww - (editor_x - wx) - 6, 68, 0);
-        i = maximum(0, out_used - 4);
-        for (y = bottom + 24 + ch - 3; i < out_used && y < bottom + 92; ++i, y += ch)
+        fill(editor_x, bottom + 24, ww - (editor_x - wx) - 6, wy + wh - 26 - (bottom + 24), 0);
+        i = maximum(0, out_used - maximum(1, (wy + wh - 26 - bottom - 24) / ch));
+        for (y = bottom + 24 + ch - 3; i < out_used && y < wy + wh - 26; ++i, y += ch)
             text(editor_x + 7, y, error_line ? 2 : 1, output[i], ww - (editor_x - wx) - 20);
-        if (!out_used) text(editor_x + 7, bottom + 42, 9, tr(T_RUN_HINT), ww - (editor_x - wx) - 20);
+        if (!out_used) text(editor_x + 7, bottom + 24 + ch - 3, 9, tr(T_RUN_HINT), ww - (editor_x - wx) - 20);
     }
     fill(wx, wy + wh - 22, ww, 22, 4);
     sprintf(buf, "Ln %d : %d | %s", row + 1, col + 1, status);
@@ -744,6 +749,16 @@ int main(void)
             } else if(show_tree && mx>=wx+6 && mx<wx+124 && my>=wy+wh-60 && my<wy+wh-30){
                 if(mx<wx+40)tree_first=maximum(0,tree_first-1);
                 else if(mx>wx+90)tree_first=minimum(maximum(0,tree_count-tree_rows),tree_first+1);
+            } else if (show_output && mx >= editor_x && mx < wx + ww - 6 &&
+                       my >= wy + wh - output_height && my < wy + wh - output_height + 6) {
+                int drag_x, drag_y, limit_top, limit_bottom;
+                limit_top = editor_y + 3 * ch;
+                limit_bottom = wy + wh - (56 + ch);
+                graf_dragbox(ww - (editor_x - wx) - 6, 6,
+                    editor_x, wy + wh - output_height,
+                    editor_x, limit_top, ww - (editor_x - wx) - 6,
+                    limit_bottom - limit_top + 6, &drag_x, &drag_y);
+                output_height = wy + wh - drag_y;
             } else if (mx >= editor_x + 36 && mx < editor_x + editor_w &&
                        my >= editor_y && my < editor_y + editor_h) {
                 row = minimum(lines - 1, first + (my - editor_y) / ch);

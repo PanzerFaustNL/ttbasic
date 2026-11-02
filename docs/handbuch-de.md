@@ -83,7 +83,7 @@ Hallo Atari TT!
 Program finished.
 ```
 
-Das Ausgabefenster zeigt die letzten vier Zeilen. Fehler stoppen die Ausführung. Die Ausgabe ist textbasiert; eigene GEM-Anwendungen oder Formulare entstehen dadurch noch nicht.
+Ziehen Sie die graue Trennleiste oberhalb der Ausgabe nach oben oder unten, um deren Hoehe zu aendern. Es werden die letzten passenden Zeilen angezeigt (maximal zehn). Fehler stoppen die Ausführung. Die Ausgabe ist textbasiert; eigene GEM-Anwendungen oder Formulare entstehen dadurch noch nicht.
 
 ## 4. Zahlen, Variablen und Kommentare
 

@@ -83,7 +83,7 @@ Hallo Atari TT!
 Program finished.
 ```
 
-Het uitvoerpaneel toont de laatste vier regels. Fouten stoppen de uitvoering. De uitvoer is tekst; dit maakt nog geen zelfstandig GEM-programma of formulier.
+Sleep de grijze scheidingsbalk boven het uitvoerpaneel omhoog of omlaag om het groter of kleiner te maken. Het paneel toont de laatste regels die passen (maximaal tien). Fouten stoppen de uitvoering. De uitvoer is tekst; dit maakt nog geen zelfstandig GEM-programma of formulier.
 
 ## 4. Getallen, variabelen en commentaar
 

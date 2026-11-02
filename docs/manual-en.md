@@ -83,7 +83,7 @@ Hello Atari TT!
 Program finished.
 ```
 
-The panel shows the last four output lines. Errors stop execution. Output is textual; the interpreter does not yet create a standalone GEM application or a visual form.
+Drag the grey divider above the output panel up or down to resize it. The panel shows the most recent lines that fit (up to ten). Errors stop execution. Output is textual; the interpreter does not yet create a standalone GEM application or a visual form.
 
 ## 4. Numbers, variables and comments
 
