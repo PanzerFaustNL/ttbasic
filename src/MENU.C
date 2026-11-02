@@ -3,9 +3,9 @@
 #include <string.h>
 #include "MENU.H"
 #include "LANG.H"
-#define MAX_OBJS 80
+#define MAX_OBJS 112
 static OBJECT menu[MAX_OBJS];
-static int actions[MAX_OBJS], items[29], used;
+static int actions[MAX_OBJS], items[64], used;
 static int screen_width, screen_height;
 static char *titles[6];
 static int title_width[] = { 10, 9, 12, 10, 9, 8 };
@@ -49,7 +49,7 @@ void menus_init(int screen_w, int screen_h)
     object(menu, 9, G_IBOX, 0, 19, screen_w, screen_h - 19);
     objc_add(menu, 0, 9); used = 10; x = 16;
     for (i = 0; i < 6; ++i) {
-        box = used++; w = i == 2 ? 304 : 280;
+        box = used++; w = (i == 2 || i == 3) ? 304 : 280;
         object(menu, box, G_BOX, x, 0, w, 16);
         objc_add(menu, 9, box); row = 0;
 #define ITEM(s,a) entry(box, row++, s, a, w)
@@ -82,12 +82,15 @@ void menus_init(int screen_w, int screen_h)
             ITEM(tr(T_M_NEXT), ACT_NEXT);
         } else if (i == 3) {
             ITEM(tr(T_M_RUN), ACT_RUN);
+            ITEM(tr(T_M_STEP),ACT_STEP);ITEM(tr(T_M_OVER),ACT_OVER);ITEM(tr(T_M_OUT),ACT_OUT);
+            ITEM(tr(T_M_BREAKPOINT),ACT_BREAKPOINT);ITEM(tr(T_M_PAUSE),ACT_PAUSE);
+            ITEM(tr(T_M_STOP),ACT_STOP);ITEM(tr(T_M_INSPECT),ACT_INSPECT);
             ITEM(tr(T_M_CLEAR), ACT_CLEAR);
             ITEM("-----------------------------", 0);
             ITEM(tr(T_M_DEMO), ACT_DEMO);
             ITEM(tr(T_M_FLOW), ACT_FLOW);
             ITEM(tr(T_M_POLY), ACT_POLY);
-            ITEM(tr(T_M_INPUT), ACT_INPUT);
+            ITEM(tr(T_M_INPUT), ACT_INPUT);ITEM(tr(T_M_GEMDEMO),ACT_GEMDEMO);
         } else if (i == 4) {
             ITEM(tr(T_M_TREE), ACT_TREE);
             ITEM(tr(T_M_PROPS), ACT_PROPS);
@@ -189,4 +192,18 @@ int input_dialog(char *prompt, char *buffer, int capacity)
     if (selected!=4) return 0;
     if (capacity>0) { strncpy(buffer,input,capacity-1); buffer[capacity-1]=0; }
     return 1;
+}
+
+void menus_debug(int running,int paused)
+{
+    int i,enabled;
+    for(i=1;i<=ACT_GEMDEMO;++i)if(items[i]){
+        enabled=1;
+        if(running)enabled=i==ACT_RUN || i==ACT_QUIT || i==ACT_STOP || i==ACT_PAUSE || i==ACT_TREE || i==ACT_OUTPUT || i==ACT_PROPS || i==ACT_BREAKPOINT || i==ACT_INSPECT || i==ACT_STEP || i==ACT_OVER || i==ACT_OUT;
+        if(i==ACT_STOP || i==ACT_PAUSE)enabled=running;
+        if(i==ACT_INSPECT || i==ACT_OVER || i==ACT_OUT)enabled=paused;
+        if(running && !paused && (i==ACT_RUN || i==ACT_STEP || i==ACT_BREAKPOINT))enabled=0;
+        if(!running && (i==ACT_UNDO || i==ACT_PASTE))continue;
+        menu_ienable(menu,items[i],enabled);
+    }
 }

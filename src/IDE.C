@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.6 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.7 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -10,6 +10,8 @@
 #include <tos.h>
 #include "PROJECT.H"
 #include "COMPLETE.H"
+#include "GEMRUN.H"
+#include <stdlib.h>
 #define DEFAULT_SOURCE "C:\\TTBASIC\\MAIN.BAS"
 
 #define KIND (NAME | CLOSER | MOVER)
@@ -20,6 +22,16 @@ static int out_used, error_line, done;
 static int output_height = 124;
 static Completion completion;
 static int completing, completion_selected;
+typedef struct { char path[BASIC_PATH];int row; } Breakpoint;
+static Breakpoint breakpoints[64];static int breakpoint_count;
+static int debug_running,debug_paused,debug_stop,debug_mode,debug_depth,debug_frame,debug_first,debug_reason,debug_skip_stop;
+static char debug_path[BASIC_PATH];static int debug_row;
+static BasicDebugValue debug_variable;
+static int breakpoint_at(char *path,int line);
+static void toggle_breakpoint(void);
+static void paint_debug_panel(int panel);
+static int debug_hook(char *path,int line,int depth,int reason);
+static int runtime_service(int *message,int key,int state);
 static int show_tree = 1, show_output = 1, tree_expanded = 1;
 static int undo_ready, undo_row, undo_col, undo_lines, undo_changed;
 static char undo_source[MAX_LINES][LINE_LEN];
@@ -29,7 +41,7 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.6 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.7 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
@@ -97,7 +109,7 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.6 - %.8s / %.40s", current_project.name, document_name());
+    sprintf(title, "TT BASIC Studio 0.7 - %.8s / %.40s", current_project.name, document_name());
     wind_set(window, WF_NAME, title);
 }
 static void open_path(char *path);
@@ -130,7 +142,7 @@ static void layout(void)
 {
     wind_get(window, WF_WORKXYWH, &wx, &wy, &ww, &wh);
     editor_x = wx + (show_tree ? 130 : 6); editor_y = wy + 64;
-    editor_w = ww - (editor_x - wx) - 6 - (props ? 138 : 0);
+    editor_w = ww - (editor_x - wx) - 6 - (props ? (debug_paused?190:138) : 0);
     output_height = maximum(56 + ch, minimum(output_height, wh - 64 - 3 * ch));
     editor_h = wh - 64 - (show_output ? output_height : 28);
     cols = maximum(1, (editor_w - 40) / cw);
@@ -216,9 +228,9 @@ static void paint(void)
     char buf[100];
     layout(); bottom = wy + wh - output_height;
     fill(wx, wy, ww, wh, 8);
-    button(wx + 6, 94, tr(T_LOAD_BUTTON), 0);
-    button(wx + 106, 112, tr(T_SAVE_BUTTON), 0);
-    button(wx + 224, 136, tr(T_RUN_BUTTON), 1);
+    button(wx + 6, 94, tr(debug_paused?T_CONTINUE:T_LOAD_BUTTON), 0);
+    button(wx + 106, 112, tr(debug_paused?T_STEP_BUTTON:T_SAVE_BUTTON), 0);
+    button(wx + 224, 136, tr(debug_paused?T_STOP_BUTTON:T_RUN_BUTTON), 1);
     text(wx + 376, wy + 22, 1, "TT BASIC Studio", ww - 388);
     fill(wx, wy + 35, ww, 1, 9);
     if (show_tree) {
@@ -251,17 +263,21 @@ static void paint(void)
     fill(editor_x, editor_y, 32, editor_h, 8);
     for (i = 0; i < rows && first + i < lines; ++i) {
         line = first + i; y = editor_y + i * ch;
+        if(debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path))
+            fill(editor_x+33,y,editor_w-33,ch,6);
         if (line == row) {
-            fill(editor_x + 33, y, editor_w - 33, ch, 8);
+            fill(editor_x + 33, y, editor_w - 33, ch, debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path)?6:8);
             fill(editor_x + 32, y, 2, ch, 4);
         }
         sprintf(buf, "%2d", line + 1);
         text(editor_x + 4, y + ch - 3, error_line == line + 1 ? 2 : 9, buf, 28);
+        if(breakpoint_at(documents[active_document].path,line+1)>=0)fill(editor_x+1,y+ch/2-3,6,6,2);
         code_line(line, y);
         if (line == row) fill(editor_x + 36 + (col - leftcol) * cw, y + ch - 2, cw, 2, 4);
     }
     if (props) {
         panel = editor_x + editor_w + 6;
+        if(debug_paused)paint_debug_panel(panel);else {
         fill(panel, wy + 40, 132, editor_h + 24, 0);
         heading(panel, wy + 40, 132, tr(T_PROPS));
         text(panel + 7, wy + 87, 9, tr(T_FILENAME), 118);
@@ -272,6 +288,7 @@ static void paint(void)
         sprintf(buf, "%d / 256", lines); text(panel + 7, wy + 211, 1, buf, 118);
         text(panel + 7, wy + 243, 9, tr(T_STATUS), 118);
         text(panel + 7, wy + 263, 1, changed ? tr(T_MODIFIED) : tr(T_SAVED), 118);
+        }
     }
     if (show_output) {
         fill(editor_x, bottom, ww - (editor_x - wx) - 6, 6, 9);
@@ -308,6 +325,7 @@ static void redraw(int x, int y, int w, int h)
 static void refresh(void)
 {
     menus_state(undo_ready, clipboard_ready, show_tree, props, show_output);
+    menus_debug(debug_running,debug_paused);
     layout(); redraw(wx, wy, ww, wh);
 }
 static void remember(void)
@@ -372,29 +390,172 @@ static int runtime_input(char *prompt,char *buffer,int capacity)
     strcpy(status,tr(T_INPUT_WAIT)); refresh();
     return input_dialog(prompt,buffer,capacity);
 }
+static int breakpoint_at(char *path,int line)
+{
+    int i;for(i=0;i<breakpoint_count;++i)if(breakpoints[i].row==line && path_equal(path,breakpoints[i].path))return i;return -1;
+}
+static void save_breakpoints(void)
+{
+    FILE *f;int i;f=fopen("C:\\TTBASIC\\STUDIO.BRK","w");if(!f)return;
+    for(i=0;i<breakpoint_count;++i)fprintf(f,"%d %s\n",breakpoints[i].row,breakpoints[i].path);fclose(f);
+}
+static void load_breakpoints(void)
+{
+    FILE *f;char line[BASIC_PATH+16],*path;int row,n;
+    breakpoint_count=0;f=fopen("C:\\TTBASIC\\STUDIO.BRK","r");if(!f)return;
+    while(breakpoint_count<64 && fgets(line,sizeof(line),f)){
+        row=atoi(line);path=strchr(line,' ');if(!path || row<1 || row>MAX_LINES)continue;++path;
+        n=strlen(path);while(n && (path[n-1]=='\r'||path[n-1]=='\n'))path[--n]=0;
+        if(!n || n>=BASIC_PATH || breakpoint_at(path,row)>=0)continue;
+        strcpy(breakpoints[breakpoint_count].path,path);breakpoints[breakpoint_count++].row=row;
+    }fclose(f);
+}
+static void toggle_breakpoint(void)
+{
+    int i;i=breakpoint_at(documents[active_document].path,row+1);
+    if(i>=0){--breakpoint_count;memmove(breakpoints+i,breakpoints+i+1,(breakpoint_count-i)*sizeof(Breakpoint));strcpy(status,tr(T_DBG_NOBREAK));}
+    else if(breakpoint_count<64){strcpy(breakpoints[breakpoint_count].path,documents[active_document].path);breakpoints[breakpoint_count++].row=row+1;strcpy(status,tr(T_DBG_BREAK));}
+    else strcpy(status,tr(T_DBG_BPLIMIT));save_breakpoints();
+}
+static void debug_location(void)
+{
+    char name[48],path[BASIC_PATH];int line;
+    if(!basic_debug_frame(debug_frame,name,path,&line))return;
+    if(!path_equal(path,documents[active_document].path))open_path(path);
+    if(path_equal(path,documents[active_document].path)){row=minimum(lines-1,line-1);col=0;}
+}
+static void paint_debug_panel(int panel)
+{
+    char name[48],path[BASIC_PATH],buf[64];int line,i,n,y;
+    fill(panel,wy+40,184,editor_h+24,0);heading(panel,wy+40,184,tr(T_DBG_VARIABLES));
+    text(panel+6,wy+86,9,tr(T_DBG_STACK),108);
+    text(panel+122,wy+86,1,"<",16);text(panel+154,wy+86,1,">",16);
+    if(basic_debug_frame(debug_frame,name,path,&line)){
+        sprintf(buf,"%d %.40s",debug_frame,name);text(panel+6,wy+106,1,buf,172);
+        sprintf(buf,"%.16s:%d",project_basename(path),line);text(panel+6,wy+126,9,buf,172);
+    }
+    n=basic_debug_count(debug_frame);debug_first=minimum(debug_first,maximum(0,n-1));
+    for(i=debug_first,y=wy+148;i<n && y+ch+20<editor_y+editor_h;i++,y+=36){
+        if(!basic_debug_variable(debug_frame,i,&debug_variable))break;
+        text(panel+6,y,1,debug_variable.name,172);text(panel+12,y+17,9,debug_variable.value,166);
+    }
+    text(panel+8,editor_y+editor_h-4,1,"^",16);text(panel+155,editor_y+editor_h-4,1,"v",16);
+}
+static void inspect_variable(int index)
+{
+    char alert[240],clean[128],header[72];int i,n;
+    if(!basic_debug_variable(debug_frame,index,&debug_variable))return;
+    for(i=0;debug_variable.value[i] && i<127;++i){char c;c=debug_variable.value[i];clean[i]=(c=='|'||c=='['||c==']'||(unsigned char)c<32)?'?':c;}clean[i]=0;
+    sprintf(header,"%.36s As %.24s",debug_variable.name,debug_variable.type);
+    for(i=0;header[i];++i)if(header[i]=='|'||header[i]=='['||header[i]==']')header[i]='?';
+    sprintf(alert,"[1][%s",header);n=strlen(clean);
+    for(i=0;i<n;i+=40){strcat(alert,"|");strncat(alert,clean+i,n-i<40?n-i:40);}
+    strcat(alert,"][OK]");form_alert(1,alert);
+}
+static void debug_command(int command,int state)
+{
+    if(command==ACT_STOP || command==ACT_QUIT){debug_stop=1;debug_paused=0;}
+    else if(command==ACT_RUN){debug_mode=0;if(debug_reason==BASIC_DEBUG_ERROR)debug_stop=1;debug_paused=0;}
+    else if(command==ACT_STEP || command==ACT_OVER || command==ACT_OUT){
+        if(debug_reason==BASIC_DEBUG_ERROR)return;
+        debug_mode=command==ACT_OVER?2:command==ACT_OUT?3:1;
+        if(command==ACT_STEP && (state & 3))debug_mode=(state & 4)?3:2;
+        debug_depth=basic_debug_frames()-1;debug_paused=0;
+    }else if(command==ACT_BREAKPOINT)toggle_breakpoint();
+    else if(command==ACT_INSPECT)inspect_variable(debug_first);
+    else if(command==ACT_TREE || command==ACT_PROPS || command==ACT_OUTPUT)action(command);
+}
+static int runtime_service(int *m,int key,int state)
+{
+    int command,scan;scan=(key>>8)&255;
+    if(key && (key & 255)==27){debug_stop=1;return 0;}
+    if(key && ((state & 4) && scan==25)){debug_mode=1;strcpy(status,tr(T_M_PAUSE));refresh();}
+    if(m){
+        if(m[0]==MN_SELECTED){
+            command=menus_event(m[3],m[4]);
+            if(command==ACT_QUIT || command==ACT_STOP){debug_stop=1;return 0;}
+            if(command==ACT_PAUSE){debug_mode=1;strcpy(status,tr(T_M_PAUSE));refresh();}
+        }else if(m[3]==window){
+            if(m[0]==WM_CLOSED){debug_stop=1;return 0;}
+            if(m[0]==WM_REDRAW)redraw(m[4],m[5],m[6],m[7]);
+            else if(m[0]==WM_TOPPED)wind_set(window,WF_TOP,0,0,0,0);
+            else if(m[0]==WM_MOVED){wind_set(window,WF_CURRXYWH,m[4],m[5],m[6],m[7]);refresh();}
+        }
+    }
+    return !debug_stop;
+}
+static int debug_hook(char *path,int line,int depth,int reason)
+{
+    int pause,events,m[8],mx,my,mb,state,key,clicks,scan,command,panel,index,previous_top,junk;
+    if(debug_stop)return 0;
+    if(reason==BASIC_DEBUG_STOP && debug_skip_stop){debug_skip_stop=0;return 1;}
+    if(reason==BASIC_DEBUG_LINE)debug_skip_stop=0;
+    pause=reason!=BASIC_DEBUG_LINE || breakpoint_at(path,line)>=0 || debug_mode==1 || (debug_mode==2 && depth<=debug_depth) || (debug_mode==3 && depth<debug_depth);
+    if(!pause)return 1;
+    if(reason==BASIC_DEBUG_ERROR && !strcmp(basic_debug_error(),"Execution cancelled"))return 0;
+    debug_skip_stop=reason==BASIC_DEBUG_LINE;debug_reason=reason;debug_paused=1;debug_frame=depth;debug_first=0;
+    strcpy(debug_path,path);debug_row=line;props=1;completing=0;
+    wind_get(0,WF_TOP,&previous_top,&junk,&junk,&junk);
+    output_height=minimum(output_height,wh-264);debug_location();wind_set(window,WF_TOP,0,0,0,0);
+    strcpy(status,tr(reason==BASIC_DEBUG_ERROR?T_DBG_ERROR:T_DBG_PAUSED));refresh();
+    while(debug_paused && !debug_stop){
+        events=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON,1,1,1,0,0,0,0,0,0,0,0,0,0,m,0,0,&mx,&my,&mb,&state,&key,&clicks);
+        if(events & MU_MESAG){
+            if(m[0]==MN_SELECTED)debug_command(menus_event(m[3],m[4]),0);
+            else if(!gemrun_message(m))runtime_service(m,0,0);
+        }
+        if(events & MU_KEYBD){
+            scan=(key>>8)&255;if(scan>=84 && scan<=93)scan-=25;command=0;
+            if((key & 255)==27)command=ACT_STOP;
+            else if(scan==63)command=ACT_RUN;
+            else if(scan==66)command=ACT_STEP;
+            else if(scan==67)command=ACT_BREAKPOINT;
+            else if((state & 4) && scan==23)command=ACT_INSPECT;
+            else if(scan==72)debug_first=maximum(0,debug_first-1);
+            else if(scan==80)debug_first=minimum(maximum(0,basic_debug_count(debug_frame)-1),debug_first+1);
+            if(command)debug_command(command,state);
+        }
+        if(events & MU_BUTTON){
+            panel=editor_x+editor_w+6;
+            if(wind_find(mx,my)==window){
+                if(my>=wy+5 && my<wy+29){
+                    if(mx<wx+100)debug_command(ACT_RUN,0);
+                    else if(mx<wx+218)debug_command(ACT_STEP,0);
+                    else if(mx<wx+360)debug_command(ACT_STOP,0);
+                }else if(props && mx>=panel){
+                    if(my>=wy+68 && my<=wy+92){
+                        if(mx<panel+146)debug_frame=maximum(0,debug_frame-1);else debug_frame=minimum(basic_debug_frames()-1,debug_frame+1);
+                        debug_first=0;debug_location();
+                    }else if(my>=editor_y+editor_h-20){
+                        if(mx<panel+80)debug_first=maximum(0,debug_first-1);else debug_first=minimum(maximum(0,basic_debug_count(debug_frame)-1),debug_first+1);
+                    }else if(my>=wy+132){index=debug_first+(my-wy-132)/36;inspect_variable(index);}
+                }else if(mx>=editor_x && mx<editor_x+editor_w && my>=editor_y && my<editor_y+editor_h){
+                    index=first+(my-editor_y)/ch;if(index<lines){row=index;col=0;if(mx<editor_x+32)toggle_breakpoint();}
+                }
+            }else {index=wind_find(mx,my);if(index>=0)wind_set(index,WF_TOP,0,0,0,0);}
+            evnt_button(1,1,0,&mx,&my,&mb,&state);
+        }
+        if(debug_paused){strcpy(status,tr(reason==BASIC_DEBUG_ERROR?T_DBG_ERROR:T_DBG_PAUSED));refresh();}
+    }
+    debug_paused=0;menus_debug(debug_running,0);if(!debug_stop && previous_top!=window)gemrun_top(previous_top);return !debug_stop;
+}
+
 static int runtime_poll(void)
 {
     int message[8],events,mx,my,mb,ks,key,clicks;
     events=evnt_multi(MU_KEYBD|MU_TIMER|MU_MESAG,0,0,0,
         0,0,0,0,0,0,0,0,0,0,message,1,0,&mx,&my,&mb,&ks,&key,&clicks);
-    if ((events & MU_KEYBD) && (key & 255)==27) return 0;
-    if (events & MU_MESAG) {
-        if (message[0]==MN_SELECTED) {
-            if (menus_event(message[3],message[4])==ACT_QUIT) return 0;
-        } else if (message[3]==window) {
-            if (message[0]==WM_CLOSED) return 0;
-            if (message[0]==WM_REDRAW) redraw(message[4],message[5],message[6],message[7]);
-            else if (message[0]==WM_TOPPED) wind_set(window,WF_TOP,0,0,0,0);
-            else if (message[0]==WM_MOVED) wind_set(window,WF_CURRXYWH,message[4],message[5],message[6],message[7]);
-        }
-    }
-    return 1;
+    if((events & MU_MESAG) && gemrun_message(message))events&=~MU_MESAG;
+    return runtime_service((events & MU_MESAG)?message:0,(events & MU_KEYBD)?key:0,ks);
 }
 static void run_source(void)
 {
+    int saved_props;saved_props=props;debug_running=1;debug_paused=debug_stop=debug_depth=debug_skip_stop=0;
     show_output = 1;
     cache_current(); strcpy(status,tr(T_RUNNING)); refresh();
     error_line = basic_run_project(documents[0].text, documents[0].count, current_project.members[0], output, &out_used);
+    if(!strcmp(basic_debug_error(),"Execution cancelled"))debug_stop=1;
+    debug_running=debug_paused=0;debug_path[0]=0;props=saved_props;debug_mode=0;
     if (error_line) {
         if (!path_equal(documents[active_document].path, basic_error_path()))
             error_line = active_document == 0 ? basic_error_main_line() : -1;
@@ -404,6 +565,10 @@ static void run_source(void)
         strcpy(status, tr(T_BASIC_ERROR));
     }
     else strcpy(status, tr(T_FINISHED));
+    if(debug_stop){error_line=0;strcpy(status,tr(T_DBG_STOPPED));
+        if(out_used && !strcmp(output[out_used-1],"Program finished."))strcpy(output[out_used-1],"Program stopped.");
+    }
+    wind_set(window,WF_TOP,0,0,0,0);
 }
 static void find_next(int beginning)
 {
@@ -565,6 +730,7 @@ static void action(int command)
     case ACT_NEWFILE:new_file();break;
     case ACT_ADDFILE:add_file();break;
     case ACT_SAVEALL:save_all();break;
+    case ACT_GEMDEMO:
     case ACT_FLOW:
     case ACT_POLY:
     case ACT_INPUT:
@@ -582,7 +748,7 @@ static void action(int command)
             FILE *demo;
             char buf[LINE_LEN];
             int n, len;
-            demo = fopen(command==ACT_FLOW ? "C:\\TTBASIC\\FLOW.BAS" :
+            demo = fopen(command==ACT_GEMDEMO ? "C:\\TTBASIC\\GEMDEMO.BAS" : command==ACT_FLOW ? "C:\\TTBASIC\\FLOW.BAS" :
                 command==ACT_POLY ? "C:\\TTBASIC\\POLY.BAS" :
                 command==ACT_INPUT ? "C:\\TTBASIC\\INPUT.BAS" : "C:\\TTBASIC\\OODEMO.BAS", "r");
             if (!demo) { strcpy(status, tr(T_DEMO_MISSING)); break; }
@@ -601,7 +767,10 @@ static void action(int command)
     case ACT_OPEN: open_source(); break;
     case ACT_SAVE: save_source(); break;
     case ACT_QUIT: done = discard_all(); break;
-    case ACT_RUN: run_source(); break;
+    case ACT_RUN: debug_mode=0;run_source(); break;
+    case ACT_STEP:debug_mode=1;run_source();break;
+    case ACT_BREAKPOINT:toggle_breakpoint();break;
+    case ACT_OVER:case ACT_OUT:case ACT_PAUSE:case ACT_STOP:case ACT_INSPECT:break;
     case ACT_UNDO: undo_edit(); break;
     case ACT_COPY:
     case ACT_CUT:
@@ -645,7 +814,7 @@ static void edit(int key, int state)
 {
     int ascii, scan, len, i, was_completing;
     char tail[LINE_LEN];
-    ascii = key & 255; scan = (key >> 8) & 255; len = strlen(source[row]);
+    ascii = key & 255; scan = (key >> 8) & 255; if(scan>=84 && scan<=93)scan-=25; len = strlen(source[row]);
     was_completing=completing;
     if ((state & 4) && scan==57) { start_completion();return; }
     if (completing) {
@@ -666,6 +835,7 @@ static void edit(int key, int state)
     }
     if (state & 4) {
         switch (scan) {
+        case 65:action(ACT_ADDFILE);return;
         case 31: action((state & 3)?ACT_SAVEALL:ACT_SAVE); return;
         case 24: action(ACT_PROJECT_OPEN); return;
         case 49: action(ACT_NEW); return;
@@ -684,7 +854,8 @@ static void edit(int key, int state)
     if (scan == 63) { action(ACT_RUN); return; }
     if (scan == 64) { action(ACT_NEXT); return; }
     if (scan == 65) { action(ACT_NEWFILE); return; }
-    if (scan == 66) { action(ACT_ADDFILE); return; }
+    if (scan == 66) { action(ACT_STEP); return; }
+    if (scan == 67) { action(ACT_BREAKPOINT); return; }
     if (scan == 72) { if (row) --row; }
     else if (scan == 80) { if (row < lines - 1) ++row; }
     else if (scan == 75) { if (col) --col; else if (row) { --row; col = strlen(source[row]); } }
@@ -756,6 +927,7 @@ int main(void)
     strcpy(documents[0].path,DEFAULT_SOURCE);documents[0].count=1;
     basic_set_reader(cached_file);
     basic_set_input(runtime_input); basic_set_poll(runtime_poll);
+    basic_set_debug(debug_hook);basic_set_gui(gemrun_request);gemrun_init(vdi,window,runtime_service);
     if(!last_project[0] || !open_project(last_project)){
         char default_project[BASIC_PATH];
         strcpy(default_project,current_project.file);
@@ -765,6 +937,7 @@ int main(void)
             open_source();project_save(&current_project);save_settings();
         }
     }
+    load_breakpoints();
     layout();graf_mouse(ARROW,0L);done=0;
     menus_state(0, 0, show_tree, props, show_output);
     while (!done) {
@@ -809,6 +982,8 @@ int main(void)
                     editor_x, limit_top, ww - (editor_x - wx) - 6,
                     limit_bottom - limit_top + 6, &drag_x, &drag_y);
                 output_height = wy + wh - drag_y;
+            } else if(mx>=editor_x && mx<editor_x+32 && my>=editor_y && my<editor_y+editor_h){
+                i=first+(my-editor_y)/ch;if(i<lines){row=i;toggle_breakpoint();}
             } else if (mx >= editor_x + 36 && mx < editor_x + editor_w &&
                        my >= editor_y && my < editor_y + editor_h) {
                 row = minimum(lines - 1, first + (my - editor_y) / ch);

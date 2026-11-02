@@ -92,6 +92,25 @@
 #define T_FILE_ADDED 89
 #define T_ADD_TITLE 90
 #define T_OPEN_PROJECT 91
+#define T_M_STEP 92
+#define T_M_OVER 93
+#define T_M_OUT 94
+#define T_M_BREAKPOINT 95
+#define T_M_PAUSE 96
+#define T_M_STOP 97
+#define T_M_INSPECT 98
+#define T_M_GEMDEMO 99
+#define T_DBG_VARIABLES 100
+#define T_DBG_STACK 101
+#define T_DBG_PAUSED 102
+#define T_DBG_ERROR 103
+#define T_DBG_STOPPED 104
+#define T_CONTINUE 105
+#define T_STEP_BUTTON 106
+#define T_STOP_BUTTON 107
+#define T_DBG_BREAK 108
+#define T_DBG_NOBREAK 109
+#define T_DBG_BPLIMIT 110
 char *tr(int key);
 int language_get(void);
 void language_set(int language);

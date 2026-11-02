@@ -32,3 +32,9 @@ ${CC:-cc} -x c -std=c89 -Wall -Wextra -Wno-deprecated-declarations \
     "$repo_root/tests/test_complete.c" "$repo_root/src/COMPLETE.C" \
     "$repo_root/src/PROJECT.C" -o "$test_dir/test_complete"
 "$test_dir/test_complete" "$test_dir"
+
+${CC:-cc} -x c -std=c89 -Wall -Wextra -Wno-deprecated-declarations \
+    $sanitizer_flags -I "$repo_root/src" \
+    "$repo_root/tests/test_gui_debug.c" "$repo_root/src/BASIC.C" \
+    -o "$test_dir/test_gui_debug"
+"$test_dir/test_gui_debug" "$repo_root/examples"

@@ -30,6 +30,10 @@
 #define T_COLLECTION -5
 #define T_VOID -6
 #define T_OBJECT -7
+#define GUI_VALUE 5
+#define T_WINDOW -8
+#define T_CHECKBOX -12
+#define HANDLERS 64
 #define ARRAY_TYPE 110
 #define B_IF 1
 #define B_WHILE 2
@@ -55,7 +59,7 @@ typedef struct {
     int parameter_type[PARAMS], result_type, virtual_method, overrides;
 } Method;
 typedef struct { int type; Value field[FIELDS]; } Instance;
-typedef struct { int self, method, count; Symbol vars[SYMBOLS]; } Frame;
+typedef struct { int self, method, count, call_pc; Symbol vars[SYMBOLS]; } Frame;
 typedef struct { int kind, element_type, count; long lower, revision; Value item[ITEMS]; } Container;
 static Code code[PROGRAM_LINES];
 static Module modules[BASIC_FILES];
@@ -76,6 +80,17 @@ static int *sink_used;
 static BasicReader file_reader;
 static BasicInput input_reader;
 static BasicPoll poll_reader;
+static BasicGui gui_reader;
+static BasicDebug debug_reader;
+static int executing, in_debug;
+typedef struct { int kind; Value property[4]; } GuiObject;
+typedef struct { int id, event, method, self; } Handler;
+static GuiObject gui_objects[GUI_LIMIT];
+static Handler handlers[HANDLERS];
+static int ngui, nhandlers, application_running, application_exit;
+static char gui_error[80];
+static int debug_line(int line);
+static void gui_store(Value *target, Value value);
 static Value expression(void);
 static Value factor(void);
 static Value invoke(int method, int self, Value *args, int argc, int need_value);
@@ -88,6 +103,8 @@ static int class_index(char *name);
 void basic_set_reader(BasicReader reader) { file_reader = reader; }
 void basic_set_input(BasicInput reader) { input_reader = reader; }
 void basic_set_poll(BasicPoll reader) { poll_reader = reader; }
+void basic_set_gui(BasicGui reader) { gui_reader=reader; }
+void basic_set_debug(BasicDebug reader) { debug_reader=reader; }
 static Value number(long n)
 {
     Value v; memset(&v, 0, sizeof(v)); v.kind = NUMBER; v.number = n;
@@ -98,6 +115,9 @@ static void fail(char *message)
     if (problem) return;
     problem = message;
     if (pc >= 0 && pc < ncode) { failure_file = code[pc].file; failure_row = code[pc].row; }
+    if(executing && debug_reader && !in_debug){
+        in_debug=1;debug_reader(modules[failure_file].path,failure_row,level,BASIC_DEBUG_ERROR);in_debug=0;
+    }
 }
 static int tick(void)
 {
@@ -121,7 +141,7 @@ static int word(char *s)
 }
 int basic_is_reserved(char *name)
 {
-    static char words[] = "IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN CALL LET PRINT INPUT REM INTEGER LONG BOOLEAN STRING VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD REDIM PRESERVE TYPEOF ARRAY";
+    static char words[] = "IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN CALL LET PRINT INPUT REM INTEGER LONG BOOLEAN STRING VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD REDIM PRESERVE TYPEOF ARRAY ADDHANDLER REMOVEHANDLER ADDRESSOF STOP";
     char *p; int i;
     for (p = words; *p; ) {
         for (i = 0; p[i] && p[i] != ' '; ++i) { }
@@ -193,8 +213,8 @@ static Value default_value(int type)
     Value v; v = number(0);
     if (type == T_STRING) v.kind = STRING;
     else if (type == T_COLLECTION) v.kind = COLLECTION;
-    else if (type >= ARRAY_TYPE - 10) v.kind = ARRAY;
-    else if (type >= 0 || type == T_OBJECT) { v.kind = REFERENCE; v.view = type; }
+    else if (type >= ARRAY_TYPE - 32) v.kind = ARRAY;
+    else if (type >= 0 || type == T_OBJECT || (type<=T_WINDOW && type>=T_CHECKBOX)) { v.kind = REFERENCE; v.view = type; }
     return v;
 }
 /* Normalize separators and . / .. components, so duplicate imports and
@@ -345,6 +365,20 @@ static int derives(int type, int base)
     for (i = 0; type >= 0 && i < CLASSES; ++i) { if (type == base) return 1; type = classes[type].base; }
     return 0;
 }
+static int gui_type(char *name)
+{
+    if(!strcmp(name,"WINDOW"))return -8;
+    if(!strcmp(name,"BUTTON"))return -9;
+    if(!strcmp(name,"LABEL"))return -10;
+    if(!strcmp(name,"TEXTBOX"))return -11;
+    if(!strcmp(name,"CHECKBOX"))return -12;
+    return 0;
+}
+static char *gui_name(int kind)
+{
+    static char *names[]={"Window","Button","Label","TextBox","CheckBox"};
+    return kind>=1 && kind<=5 ? names[kind-1] : "GUI";
+}
 static int type_name(void)
 {
     char name[NAME_LEN]; int type;
@@ -355,6 +389,7 @@ static int type_name(void)
     if (!strcmp(name, "VARIANT")) return T_ANY;
     if (!strcmp(name, "OBJECT")) return T_OBJECT;
     if (!strcmp(name, "COLLECTION")) return T_COLLECTION;
+    type=gui_type(name);if(type)return type;
     type = class_index(name);
     if (type < 0) { fail("Unknown variable type"); return T_NUMBER; }
     return type;
@@ -364,7 +399,7 @@ static int check_type(int type, Value v)
     int actual;
     if (problem) return 0;
     if (type == T_ANY) return 1;
-    if (type >= ARRAY_TYPE - 10) {
+    if (type >= ARRAY_TYPE - 32) {
         if (v.kind == ARRAY && (v.object < 0 || containers[v.object].element_type == type - ARRAY_TYPE)) return 1;
         fail("Array element type does not match declaration"); return 0;
     }
@@ -373,6 +408,11 @@ static int check_type(int type, Value v)
     if (type == T_NUMBER || type == T_BOOLEAN) {
         if (v.kind == NUMBER) return 1; fail("Numeric variable/field requires number"); return 0;
     }
+    if(type<=T_WINDOW && type>=T_CHECKBOX){
+        if((v.kind==GUI_VALUE && v.view==type) || (v.kind==REFERENCE && v.object<0))return 1;
+        fail("GUI control type does not match declaration");return 0;
+    }
+    if(type==T_OBJECT && v.kind==GUI_VALUE)return 1;
     if (v.kind != REFERENCE) { fail("Object variable requires object or Nothing"); return 0; }
     if (v.object < 0 || type == T_OBJECT) return 1;
     actual = objects[v.object].type;
@@ -385,6 +425,7 @@ static int put(Value *target, int type, Value v)
     if (type == T_BOOLEAN) v.number = v.number ? -1 : 0;
     if (type == T_COLLECTION && v.kind == REFERENCE) v.kind = COLLECTION;
     if (v.kind == REFERENCE) v.view = type >= 0 ? type : -1;
+    gui_store(target,v);if(problem)return 0;
     *target = v; return 1;
 }
 static int accessor(void) { return level ? methods[frames[level].method].owner : -1; }
@@ -414,6 +455,7 @@ static void class_headers(void)
         is_interface = word("INTERFACE");
         if (!is_interface && !word("CLASS")) continue;
         if (!declaration_name(name, 0)) break;
+        if(gui_type(name)){fail("Class name is a built-in GUI type");break;}
         if (class_index(name) >= 0) { fail("Duplicate Class name"); break; }
         if (nclasses == CLASSES) { fail("Maximum 16 classes/interfaces"); break; }
         i = nclasses++; memset(&classes[i], 0, sizeof(Class));
@@ -784,6 +826,120 @@ static Value builtin_call(char *name, Value *args, int argc)
     }
     return v;
 }
+
+static int gui_request(BasicGuiRequest *r)
+{
+    int result;
+    if(!gui_reader){fail("GEM runtime is not available");return -1;}
+    result=gui_reader(r);
+    if(result<0 || (!result && r->operation!=GUI_NEXT)){
+        strncpy(gui_error,r->error[0]?r->error:"GEM operation failed",79);gui_error[79]=0;fail(gui_error);
+    }
+    return result;
+}
+static int gui_property(char *name,int kind)
+{
+    if(!strcmp(name,"TEXT") || (!strcmp(name,"TITLE") && kind==GUI_WINDOW))return 0;
+    if(!strcmp(name,"ENABLED") && kind!=GUI_WINDOW)return 1;
+    if(!strcmp(name,"VISIBLE"))return 2;
+    if(!strcmp(name,"CHECKED") && kind==GUI_CHECKBOX)return 3;
+    return -1;
+}
+static char *gui_property_name(int property)
+{
+    static char *names[]={"TEXT","ENABLED","VISIBLE","CHECKED"};return names[property];
+}
+static void gui_store(Value *target,Value value)
+{
+    BasicGuiRequest r;int i,p;
+    for(i=0;i<ngui;++i)for(p=0;p<4;++p)if(target==&gui_objects[i].property[p]){
+        memset(&r,0,sizeof(r));r.operation=GUI_SET;r.id=i;strcpy(r.property,gui_property_name(p));
+        if(!p)strcpy(r.text,value.string);else r.number=value.number;
+        gui_request(&r);return;
+    }
+}
+static Value gui_construct(int type,Value *args,int argc)
+{
+    BasicGuiRequest r;Value v;int i,kind;long sizes[4];
+    v=number(0);kind=-type-7;
+    if(ngui==GUI_LIMIT){fail("Maximum 64 GUI objects per run");return v;}
+    memset(&r,0,sizeof(r));r.operation=GUI_CREATE;r.kind=kind;r.id=ngui;
+    if(kind==GUI_WINDOW){
+        if(argc!=3 || args[0].kind!=STRING){fail("New Window(title, width, height)");return v;}
+        sizes[0]=numeric(args[1]);sizes[1]=numeric(args[2]);
+        if(sizes[0]<120 || sizes[0]>640 || sizes[1]<64 || sizes[1]>480){fail("Invalid Window size");return v;}
+        strcpy(r.text,args[0].string);r.width=(int)sizes[0];r.height=(int)sizes[1];
+    }else{
+        if(argc!=6 || args[0].kind!=GUI_VALUE || args[0].view!=T_WINDOW || args[1].kind!=STRING){
+            fail("New control(window, text, x, y, width, height)");return v;
+        }
+        r.parent=args[0].object;strcpy(r.text,args[1].string);
+        for(i=2;i<6;++i){sizes[i-2]=numeric(args[i]);if(sizes[i-2]<0 || sizes[i-2]>640){fail("Invalid control bounds");return v;}}
+        r.x=(int)sizes[0];r.y=(int)sizes[1];r.width=(int)sizes[2];r.height=(int)sizes[3];
+    }
+    if(problem || gui_request(&r)!=1)return v;
+    gui_objects[ngui].kind=kind;gui_objects[ngui].property[0]=string_value(r.text);
+    for(i=1;i<4;++i)gui_objects[ngui].property[i]=number(i<3?-1:0);
+    v.kind=GUI_VALUE;v.object=ngui++;v.view=type;return v;
+}
+static int gui_event(char *name,int kind)
+{
+    if(!strcmp(name,"CLICK") && (kind==GUI_BUTTON || kind==GUI_CHECKBOX))return GUI_CLICK;
+    if(!strcmp(name,"CHANGE") && kind==GUI_TEXTBOX)return GUI_CHANGE;
+    if(!strcmp(name,"LOAD") && kind==GUI_WINDOW)return GUI_LOAD;
+    if(!strcmp(name,"CLOSED") && kind==GUI_WINDOW)return GUI_CLOSED;
+    return 0;
+}
+static void bind_handler(int remove)
+{
+    char name[NAME_LEN],member[NAME_LEN];Symbol *symbol;Value control,target;
+    int event,m,self,i;
+    if(!ident(name))return;symbol=find_symbol(name);
+    if(!symbol || symbol->value.kind!=GUI_VALUE){fail("AddHandler expects a GUI control variable");return;}
+    control=symbol->value;space();if(*scan!='.'){fail("Expected control.Event");return;}++scan;
+    if(!ident(member))return;event=gui_event(member,gui_objects[control.object].kind);
+    if(!event){fail("Event is not supported by this control");return;}
+    space();if(*scan!=','){fail("Expected comma before AddressOf");return;}++scan;
+    if(!word("ADDRESSOF") || !ident(name)){fail("Expected AddressOf handler");return;}
+    self=-1;m=own_method(-1,name);space();
+    if(*scan=='.'){
+        ++scan;
+        if(!strcmp(name,"ME"))target=self_value(0);
+        else {symbol=find_symbol(name);if(!symbol){fail("Unknown handler object");return;}target=symbol->value;}
+        if(!ident(member))return;i=object_type(target);if(problem)return;
+        m=method_index(i,member);self=target.object;
+    }else if(m<0 && accessor()>=0){m=method_index(accessor(),name);self=frames[level].self;}
+    if(m<0 || methods[m].function || methods[m].argc>1){fail("Handler must be a Sub with zero or one sender parameter");return;}
+    if(!allowed(accessor(),methods[m].owner,methods[m].visible) || !endline())return;
+    if(methods[m].argc && !check_type(methods[m].parameter_type[0],control))return;
+    for(i=0;i<nhandlers;++i)if(handlers[i].id==control.object && handlers[i].event==event && handlers[i].method==m && handlers[i].self==self){
+        if(remove){--nhandlers;memmove(handlers+i,handlers+i+1,(nhandlers-i)*sizeof(Handler));}return;
+    }
+    if(remove)return;
+    if(nhandlers==HANDLERS){fail("Maximum 64 event handlers");return;}
+    handlers[nhandlers].id=control.object;handlers[nhandlers].event=event;handlers[nhandlers].method=m;handlers[nhandlers++].self=self;
+}
+static void application_run(void)
+{
+    BasicGuiRequest r;Handler dispatch[HANDLERS];Value sender;
+    int result,i,count,saved_pc;char *saved_scan;
+    if(application_running){fail("Application.Run cannot be nested");return;}
+    application_running=1;application_exit=0;saved_pc=pc;saved_scan=scan;
+    while(!problem && !stopped && !application_exit){
+        memset(&r,0,sizeof(r));r.operation=GUI_NEXT;result=gui_request(&r);
+        if(result<=0)break;
+        if(r.id<0 || r.id>=ngui || r.event<GUI_CLICK || r.event>GUI_CLOSED){fail("Invalid GEM event");break;}
+        count=0;
+        for(i=0;i<nhandlers;++i)if(handlers[i].id==r.id && handlers[i].event==r.event)dispatch[count++]=handlers[i];
+        sender=number(0);sender.kind=GUI_VALUE;sender.object=r.id;sender.view=-7-gui_objects[r.id].kind;
+        for(i=0;i<count && !problem && !application_exit && !stopped;++i){
+            pc=saved_pc;scan=saved_scan;invoke(dispatch[i].method,dispatch[i].self,&sender,methods[dispatch[i].method].argc,0);
+        }
+        pc=saved_pc;scan=saved_scan;
+    }
+    application_running=0;
+}
+
 /* A reference returns both its value and its assignable slot, if any. */
 static Value reference(char *name, int create, int need_value, Value **slot, int *slot_type, int *called)
 {
@@ -791,6 +947,15 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
     char member[NAME_LEN]; int m, argc, actual, view, f, base_dispatch, index, type; long raw_index;
     v = number(0); *slot = 0; *slot_type = T_ANY; *called = 0;
     base_dispatch = !strcmp(name,"MYBASE"); space(); s = find_symbol(name);
+    if(!strcmp(name,"APPLICATION")){
+        if(*scan!='.'){fail("Expected Application.Run() or Exit()");return v;}++scan;
+        if(!ident(member))return v;space();if(*scan!='('){fail("Expected Application method parentheses");return v;}
+        argc=arguments(args);*called=1;
+        if(argc || need_value)fail("Application method expects no arguments and no result");
+        else if(!strcmp(member,"RUN"))application_run();
+        else if(!strcmp(member,"EXIT"))application_exit=1;
+        else fail("Unknown Application method");return v;
+    }
     if (!strcmp(name,"ME") || base_dispatch) v = self_value(base_dispatch);
     else if (!strcmp(name,"NOTHING")) { v.kind = REFERENCE; }
     else if (!strcmp(name,"TRUE")) v = number(-1);
@@ -822,6 +987,26 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
         }
         ++scan; if (!ident(member)) break; space();
         *slot = 0; *slot_type = T_ANY;
+        if(v.kind==GUI_VALUE){
+            BasicGuiRequest request;int property,id;
+            memset(&request,0,sizeof(request));request.id=id=v.object;
+            if(*scan=='('){
+                argc=arguments(args);*called=1;
+                if(argc || need_value){fail("GUI method expects no arguments and no result");break;}
+                if(v.view!=T_WINDOW){fail("Only Window supports Show() and Close()");break;}
+                request.operation=!strcmp(member,"SHOW")?GUI_SHOW:!strcmp(member,"CLOSE")?GUI_CLOSE:0;
+                if(!request.operation){fail("Unknown GUI method");break;}
+                gui_request(&request);v=number(0);
+            }else{
+                property=gui_property(member,gui_objects[id].kind);
+                if(property<0){fail("Unknown GUI property");break;}
+                request.operation=GUI_GET;strcpy(request.property,gui_property_name(property));
+                if(gui_request(&request)!=1)break;
+                *slot=&gui_objects[id].property[property];*slot_type=property?T_BOOLEAN:T_STRING;
+                **slot=property?number(request.number):string_value(request.text);v=**slot;
+            }
+            space();continue;
+        }
         if (v.kind == ARRAY || v.kind == COLLECTION) {
             c = container(v); if (!c) break;
             if (!strcmp(member,"COUNT") && *scan != '(') { v = number(c->count); space(); continue; }
@@ -883,7 +1068,7 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
         }
         base_dispatch = 0; space();
     }
-    type = *slot_type; if (v.kind == REFERENCE && type >= 0 && type < ARRAY_TYPE-10) v.view = type;
+    type = *slot_type; if (v.kind == REFERENCE && type >= 0 && type < ARRAY_TYPE-32) v.view = type;
     return v;
 }
 static Value factor(void)
@@ -904,17 +1089,24 @@ static Value factor(void)
     } else if (word("TYPEOF")) {
         element=factor(); if (!word("IS") || !ident(name)) fail("Expected TypeOf object Is type");
         else {
-            type=class_index(name); if (type<0) fail("Unknown Class / Interface");
-            else if (element.kind!=REFERENCE) fail("TypeOf expects an object");
-            else v=number(element.object>=0 && (derives(objects[element.object].type,type) ||
-                (classes[type].is_interface && (classes[objects[element.object].type].interfaces & (1UL<<type)))) ? -1 : 0);
+            type=gui_type(name);
+            if(type)v=number(element.kind==GUI_VALUE && element.view==type?-1:0);
+            else if(!strcmp(name,"OBJECT"))v=number((element.kind==GUI_VALUE || element.kind==REFERENCE) && element.object>=0?-1:0);
+            else{
+                type=class_index(name); if (type<0) fail("Unknown Class / Interface");
+                else if(element.kind==GUI_VALUE)v=number(0);
+                else if (element.kind!=REFERENCE) fail("TypeOf expects an object");
+                else v=number(element.object>=0 && (derives(objects[element.object].type,type) ||
+                    (classes[type].is_interface && (classes[objects[element.object].type].interfaces & (1UL<<type)))) ? -1 : 0);
+            }
         }
     } else if (word("NEW")) {
         if (ident(name)) {
             argc=0; space(); if (*scan=='(') argc=arguments(args);
             if (!strcmp(name,"COLLECTION")) {
                 if (argc) fail("New Collection expects no arguments"); else v=make_container(COLLECTION,T_ANY,1,0);
-            } else { type=class_index(name); if (type<0) fail("Unknown Class after New"); else if (!problem) v=construct(type,args,argc); }
+            } else if(gui_type(name))v=gui_construct(gui_type(name),args,argc);
+            else { type=class_index(name); if (type<0) fail("Unknown Class after New"); else if (!problem) v=construct(type,args,argc); }
         }
     } else if (word("ARRAY")) {
         v=make_container(ARRAY,T_ANY,0,-1); c=container(v); space();
@@ -971,8 +1163,8 @@ static Value compare_expression(void)
         negate=toupper((unsigned char)scan[-1])=='T';
         if (!negate && word("NOT")) negate=1;
         b=sum();
-        if (a.kind!=REFERENCE || b.kind!=REFERENCE) fail("Is expects object references");
-        else a=number((a.object==b.object)!=negate ? -1 : 0);
+        if ((a.kind!=REFERENCE && a.kind!=GUI_VALUE) || (b.kind!=REFERENCE && b.kind!=GUI_VALUE)) fail("Is expects object references");
+        else a=number(((a.kind==b.kind && a.object==b.object) || (a.object<0 && b.object<0))!=negate ? -1 : 0);
     } else if (!problem && (*scan=='=' || *scan=='<' || *scan=='>')) {
         op=*scan++; next=0; if (*scan=='=' || (op=='<' && *scan=='>')) next=*scan++;
         b=sum(); a=number(comparison(a,b,op,next) ? -1 : 0);
@@ -1126,6 +1318,14 @@ static void simple(char *text)
     int type,called,as_new,array,dynamic,preserve,i; long lower,upper;
     scan=text; expr_depth=0; space();
     if (!*scan || *scan=='\'' || word("REM") || word("IMPORTS")) return;
+    if(word("ADDHANDLER")){bind_handler(0);return;}
+    if(word("REMOVEHANDLER")){bind_handler(1);return;}
+    if(word("STOP")){
+        if(endline() && debug_reader){
+            in_debug=1;i=debug_reader(modules[code[pc].file].path,code[pc].row,level,BASIC_DEBUG_STOP);in_debug=0;
+            if(!i)fail("Execution cancelled");
+        }else if(!problem)fail("Stop statement requires a debugger");return;
+    }
     if (word("PRINT")) { print_line(); return; }
     if (word("INPUT")) { read_input(); return; }
     if (word("RETURN")) {
@@ -1151,7 +1351,7 @@ static void simple(char *text)
     }
     if (word("REDIM")) {
         preserve=word("PRESERVE"); if (!ident(name)) return; s=lookup(name,0); if (!s) return;
-        if (s->type<ARRAY_TYPE-10) { fail("ReDim requires an array variable"); return; }
+        if (s->type<ARRAY_TYPE-32) { fail("ReDim requires an array variable"); return; }
         bounds(&lower,&upper,&dynamic); if (!endline() || problem) return;
         if (dynamic) { fail("ReDim requires bounds"); return; }
         old=s->value; v=make_container(ARRAY,s->type-ARRAY_TYPE,lower,upper);
@@ -1209,6 +1409,7 @@ static void execute_if(int start,int end)
     int branch,next,take; Value v;
     branch=start;
     while (branch<end && !problem) {
+        if(branch!=start && !debug_line(branch))return;
         pc=branch; scan=code[branch].text;
         if (word("IF") || word("ELSEIF")) {
             v=expression(); take=numeric(v)!=0;
@@ -1246,6 +1447,7 @@ static void execute_select(int start,int end)
     pc=start; scan=code[start].text; word("SELECT"); word("CASE"); selector=expression(); if (!endline()) return;
     branch=branch_next[start];
     while (branch<end && !problem) {
+        if(!debug_line(branch))return;
         pc=branch; scan=code[branch].text; word("CASE"); next=branch_next[branch];
         if (case_matches(selector)) { run_range(branch+1,next); handle_signal(B_SELECT); return; }
         branch=next;
@@ -1253,26 +1455,30 @@ static void execute_select(int start,int end)
 }
 static void execute_while(int start,int end)
 {
-    Value condition; int action;
+    Value condition; int action,first;first=1;
     while (!problem && !returned && !stopped && tick()) {
+        if(!first && !debug_line(start))break;first=0;
         pc=start; scan=code[start].text; word("WHILE"); condition=expression(); if (!endline() || !numeric(condition)) break;
-        run_range(start+1,end); action=handle_signal(B_WHILE); if (action) break;
+        run_range(start+1,end); action=handle_signal(B_WHILE); if (action || stopped || problem) break;
+        if(!debug_line(end))break;
     }
 }
 static void execute_do(int start,int end)
 {
-    int pre,post,until,action; Value condition;
+    int pre,post,until,action,first; Value condition;first=1;
     pc=start; scan=code[start].text; word("DO"); pre=word("WHILE"); until=0;
     if (!pre && word("UNTIL")) { pre=1; until=1; }
     pc=end; scan=code[end].text; word("LOOP"); post=word("WHILE") || word("UNTIL");
     if (pre && post) { fail("Do cannot have both pre and post conditions"); return; }
     while (!problem && !returned && !stopped && tick()) {
+        if(!first && !debug_line(start))break;first=0;
         pc=start; scan=code[start].text; word("DO");
         if (pre) {
             if (until) word("UNTIL"); else word("WHILE");
             condition=expression(); if (!endline() || ((numeric(condition)!=0)==until)) break;
         } else if (!endline()) break;
         run_range(start+1,end); action=handle_signal(B_DO); if (action || problem || returned || stopped) break;
+        if(!debug_line(end))break;
         pc=end; scan=code[end].text; word("LOOP");
         if (post) {
             until=word("UNTIL"); if (!until) word("WHILE");
@@ -1283,7 +1489,7 @@ static void execute_do(int start,int end)
 static void execute_for(int start,int end)
 {
     Symbol *s; Value initial,finish,step,sequence; Container *c;
-    char name[NAME_LEN],closing[NAME_LEN]; long n,limit,delta; int each,type,i,action; long revision;
+    char name[NAME_LEN],closing[NAME_LEN]; long n,limit,delta; int each,type,i,action,first; long revision;first=1;
     pc=start; scan=code[start].text; word("FOR"); each=word("EACH");
     if (!declaration_name(name,0)) return;
     if (word("AS")) {
@@ -1300,10 +1506,12 @@ static void execute_for(int start,int end)
         if (*scan && *scan!='\'') { if (!ident(closing) || strcmp(name,closing)) fail("Next variable does not match For"); }
         endline();
         for (i=0; i<c->count && !problem && !returned && !stopped && tick(); ++i) {
+            if(!first && !debug_line(start))break;first=0;
             pc=start;
             if (c->revision!=revision) { fail("Collection changed during For Each"); break; }
             if (!put(&s->value,s->type,c->item[i])) break;
             run_range(start+1,end); action=handle_signal(B_FOR); if (action) break;
+            if(!problem && !stopped && !returned && !debug_line(end))break;
             if (c->revision!=revision) { pc=start; fail("Collection changed during For Each"); break; }
         }
     } else {
@@ -1319,12 +1527,22 @@ static void execute_for(int start,int end)
         if (*scan && *scan!='\'') { if (!ident(closing) || strcmp(name,closing)) fail("Next variable does not match For"); }
         endline();
         while (!problem && !returned && !stopped && (delta>0 ? n<=limit : n>=limit) && tick()) {
+            if(!first && !debug_line(start))break;first=0;
             run_range(start+1,end); action=handle_signal(B_FOR); if (action || problem || returned || stopped) break;
+            if(!debug_line(end))break;
             pc=start; n=numeric(s->value)+delta;
             if (n>LIMIT || n< -LIMIT) { fail("For counter exceeds numeric range"); break; }
             put(&s->value,s->type,number(n));
         }
     }
+}
+static int debug_line(int line)
+{
+    int ok;
+    if(!debug_reader || in_debug || problem || blank_line(line))return !problem;
+    scan=code[line].text;if(word("IMPORTS"))return 1;
+    pc=line;in_debug=1;ok=debug_reader(modules[code[line].file].path,code[line].row,level,BASIC_DEBUG_LINE);in_debug=0;
+    if(!ok){stopped=1;return 0;}return !problem;
 }
 static void run_range(int start,int end)
 {
@@ -1332,7 +1550,7 @@ static void run_range(int start,int end)
     for (current=start; current<end && !problem && !returned && !stopped && !signal_kind; current=next) {
         pc=current; next=current+1;
         if (skip_to[current]) { next=skip_to[current]; continue; }
-        if (!tick()) break;
+        if (!tick() || !debug_line(current)) break;
         scan=code[current].text; expr_depth=0;
         if (word("IF")) {
             scan=code[current].text;
@@ -1357,7 +1575,7 @@ static Value invoke(int m,int self,Value *args,int argc,int need_value)
     if (problem) return result;
     saved_scan=scan; saved_pc=pc; saved_depth=expr_depth; saved_returned=returned; saved_return=return_value;
     saved_signal=signal_kind; saved_continue=signal_continue;
-    frame=&frames[++level]; frame->self=self; frame->method=m; frame->count=argc;
+    frame=&frames[++level]; frame->self=self; frame->method=m; frame->count=argc; frame->call_pc=saved_pc;
     for (i=0; i<argc; ++i) {
         strcpy(frame->vars[i].name,method->params[i]); frame->vars[i].type=method->parameter_type[i]; frame->vars[i].declaration=-2;
         put(&frame->vars[i].value,frame->vars[i].type,args[i]);
@@ -1365,7 +1583,7 @@ static Value invoke(int m,int self,Value *args,int argc,int need_value)
     returned=signal_kind=signal_continue=0; return_value=default_value(method->result_type);
     run_range(method->start,method->end);
     if (!problem && signal_kind) fail("Exit/Continue has no matching block in method");
-    if (!problem && method->function && !returned) { pc=method->end; fail("Function finished without Return"); }
+    if (!problem && !stopped && method->function && !returned) { pc=method->end; fail("Function finished without Return"); }
     if (!problem) result=return_value;
     --level; scan=saved_scan; pc=saved_pc; expr_depth=saved_depth; returned=saved_returned; return_value=saved_return;
     signal_kind=saved_signal; signal_continue=saved_continue; return result;
@@ -1415,6 +1633,8 @@ int basic_run_project(char source[MAX_LINES][LINE_LEN],int count,char *mainpath,
 {
     char path[BASIC_PATH],text[OUT_LEN]; int i;
     sink=output; sink_used=used; *used=0;
+    executing=in_debug=ngui=nhandlers=application_running=application_exit=0;
+    if(gui_reader){BasicGuiRequest reset;memset(&reset,0,sizeof(reset));reset.operation=GUI_RESET;gui_reader(&reset);}
     ncode=nfiles=nclasses=nmethods=nobjects=ncontainers=level=returned=stopped=signal_kind=signal_continue=0;
     steps=0; problem=0; pc=-1; failure_file=0; failure_row=1;
     memset(frames,0,sizeof(frames)); memset(skip_to,0,sizeof(skip_to));
@@ -1428,12 +1648,74 @@ int basic_run_project(char source[MAX_LINES][LINE_LEN],int count,char *mainpath,
     if (!problem) validate_classes();
     if (!problem) build_flow(0,ncode);
     for (i=0; i<nmethods && !problem; ++i) if (methods[i].start>=0) build_flow(methods[i].start,methods[i].end);
+    executing=1;
     if (!problem) run_range(0,ncode);
     if (!problem && signal_kind) fail("Exit/Continue has no matching block");
+    executing=0;
+    if(gui_reader){BasicGuiRequest reset;memset(&reset,0,sizeof(reset));reset.operation=GUI_RESET;gui_reader(&reset);}
     if (problem) { sprintf(text,"%.24s:%d: %.44s",basic_file_name(failure_file),failure_row,problem); emit(text); return failure_row; }
     emit("Program finished."); return 0;
 }
 int basic_run(char source[MAX_LINES][LINE_LEN],int count,char output[OUT_LINES][OUT_LEN],int *used)
 {
     return basic_run_project(source,count,"MAIN.BAS",output,used);
+}
+
+/* Read-only debugger access: no BASIC expressions or methods are evaluated. */
+static void debug_type(int type,char *text)
+{
+    if(type>=ARRAY_TYPE-32){debug_type(type-ARRAY_TYPE,text);strcat(text,"()");}
+    else if(type>=0 && type<nclasses)strcpy(text,classes[type].name);
+    else if(type<=T_WINDOW && type>=T_CHECKBOX)strcpy(text,gui_name(-type-7));
+    else strcpy(text,type==T_STRING?"String":type==T_BOOLEAN?"Boolean":type==T_ANY?"Variant":type==T_COLLECTION?"Collection":type==T_OBJECT?"Object":"Integer");
+}
+static void debug_value(Value value,char *text)
+{
+    if(value.kind==STRING){text[0]='"';strncpy(text+1,value.string,123);text[124]=0;strcat(text,"\"");}
+    else if(value.kind==NUMBER)sprintf(text,"%ld",value.number);
+    else if(value.object<0)strcpy(text,"Nothing");
+    else if(value.kind==GUI_VALUE){
+        BasicGuiRequest r;memset(&r,0,sizeof(r));r.operation=GUI_GET;r.id=value.object;strcpy(r.property,"TEXT");
+        sprintf(text,"%s #%d",gui_name(gui_objects[value.object].kind),value.object+1);
+        if(gui_reader && gui_reader(&r)==1){strcat(text," Text=\"");strncat(text,r.text,90);strcat(text,"\"");}
+    }
+    else if(value.kind==REFERENCE)sprintf(text,"%s #%d",classes[objects[value.object].type].name,value.object+1);
+    else if(value.kind==ARRAY || value.kind==COLLECTION)sprintf(text,"%s: %d items",value.kind==ARRAY?"Array":"Collection",containers[value.object].count);
+    else strcpy(text,"?");
+}
+int basic_debug_frames(void){return executing?level+1:0;}
+char *basic_debug_error(void){return problem?problem:"";}
+int basic_debug_frame(int frame,char *name,char *path,int *row)
+{
+    int line,m;
+    if(!executing || frame<0 || frame>level)return 0;
+    line=frame==level?pc:frames[frame+1].call_pc;
+    if(line<0 || line>=ncode)return 0;
+    if(!frame)strcpy(name,"<Main>");
+    else {m=frames[frame].method;if(methods[m].owner>=0)sprintf(name,"%s.%s",classes[methods[m].owner].name,methods[m].name);else strcpy(name,methods[m].name);}
+    strcpy(path,modules[code[line].file].path);*row=code[line].row;return 1;
+}
+int basic_debug_count(int frame)
+{
+    int count,self;
+    if(!executing || frame<0 || frame>level)return 0;
+    count=frames[frame].count;
+    if(frame){count+=frames[0].count;self=frames[frame].self;if(self>=0)count+=classes[objects[self].type].fields;}
+    return count;
+}
+int basic_debug_variable(int frame,int index,BasicDebugValue *out)
+{
+    Symbol *symbol;Field *field;int self,fields;
+    if(index<0 || index>=basic_debug_count(frame))return 0;
+    symbol=0;self=frames[frame].self;
+    if(index<frames[frame].count)symbol=&frames[frame].vars[index];
+    else{
+        index-=frames[frame].count;fields=frame && self>=0?classes[objects[self].type].fields:0;
+        if(index<fields){
+            field=&classes[objects[self].type].field[index];sprintf(out->name,"Me.%s",field->name);
+            debug_type(field->type,out->type);debug_value(objects[self].field[index],out->value);return 1;
+        }
+        symbol=&frames[0].vars[index-fields];
+    }
+    strcpy(out->name,symbol->name);debug_type(symbol->type,out->type);debug_value(symbol->value,out->value);return 1;
 }

@@ -153,7 +153,7 @@ static int code_position(char *line,int col)
 }
 void complete_build(BasicSource source,int count,int row,int col,char *path,BasicReader reader,Completion *out)
 {
-    static char words[]="If Then Else ElseIf End While Wend For Each In To Step Next Select Case Is IsNot Do Loop Until Exit Continue Dim As New Class Interface Inherits Implements Public Private Protected Overridable Overrides Sub Function Return Call Let Print Input Rem Integer Long Boolean String Variant Object Collection True False Nothing Me MyBase And Or Not Xor Mod ReDim Preserve TypeOf Array Len Count Str CStr Val CInt Abs UBound LBound Left Right Mid UCase LCase";
+    static char words[]="If Then Else ElseIf End While Wend For Each In To Step Next Select Case Is IsNot Do Loop Until Exit Continue Dim As New Class Interface Inherits Implements Public Private Protected Overridable Overrides Sub Function Return Call Let Print Input Rem Integer Long Boolean String Variant Object Collection True False Nothing Me MyBase And Or Not Xor Mod ReDim Preserve TypeOf Array Window Button Label TextBox CheckBox Application AddHandler RemoveHandler AddressOf Stop Len Count Str CStr Val CInt Abs UBound LBound Left Right Mid UCase LCase";
     int f,n,i,j,start,end,member,depth;BasicSource src;FILE *file;
     char prefix[24],receiver[24],type[24],base[24],word[24],*p;CompletionItem temp;
     memset(out,0,sizeof(*out));
@@ -184,13 +184,25 @@ void complete_build(BasicSource source,int count,int row,int col,char *path,Basi
         j=start-1;i=j;while(i && letter(source[row][i-1]))--i;
         if(i==j || j-i>23)return;
         memcpy(receiver,source[row]+i,j-i);receiver[j-i]=0;type[0]=0;
-        if(equal(receiver,"Me") || equal(receiver,"MyBase"))strcpy(type,focus_class);
+        if(equal(receiver,"Application"))strcpy(type,"Application");
+        else if(equal(receiver,"Me") || equal(receiver,"MyBase"))strcpy(type,focus_class);
         else {
             for(i=symbol_count-1;i>=0;--i)if(equal(symbols[i].name,receiver) && symbols[i].kind==0 && in_context(&symbols[i])){
                 strcpy(type,symbols[i].type);if(symbols[i].scope)break;
             }
         }
         if(equal(receiver,"MyBase"))for(i=0;i<symbol_count;++i)if(symbols[i].kind==1 && equal(symbols[i].name,type)){strcpy(type,symbols[i].type);break;}
+        if(equal(type,"Application")){offer(out,"Run","Run()",prefix);offer(out,"Exit","Exit()",prefix);}
+        if(equal(type,"Window") || equal(type,"Button") || equal(type,"Label") || equal(type,"TextBox") || equal(type,"CheckBox")){
+            offer(out,"Text","String",prefix);offer(out,"Visible","Boolean",prefix);
+            if(equal(type,"Window")){
+                offer(out,"Title","String",prefix);offer(out,"Show","Show()",prefix);offer(out,"Close","Close()",prefix);
+                offer(out,"Load","Event",prefix);offer(out,"Closed","Event",prefix);
+            }else offer(out,"Enabled","Boolean",prefix);
+            if(equal(type,"Button") || equal(type,"CheckBox"))offer(out,"Click","Event",prefix);
+            if(equal(type,"TextBox"))offer(out,"Change","Event",prefix);
+            if(equal(type,"CheckBox"))offer(out,"Checked","Boolean",prefix);
+        }
         if(equal(type,"Collection")){
             offer(out,"Add","Add(value)",prefix);offer(out,"Remove","Remove(index)",prefix);offer(out,"Clear","Clear()",prefix);offer(out,"Count","Integer",prefix);offer(out,"Item","Item(index)",prefix);
         }

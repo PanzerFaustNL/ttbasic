@@ -1,4 +1,4 @@
-TT BASIC Studio 0.5
+TT BASIC Studio 0.7
 ===================
 
 NEDERLANDS
@@ -59,7 +59,7 @@ PROJECTS / PROJECTEN / PROJEKTE (0.5)
 Ctrl+N: New project / Nieuw project / Neues Projekt
 Ctrl+O: Open .TBP project / Project openen / Projekt oeffnen
 F7: New source file / Nieuw bestand / Neue Datei
-F8: Add existing .BAS / Bestand toevoegen / Datei hinzufuegen
+Ctrl+F7: Add existing .BAS / Bestand toevoegen / Datei hinzufuegen
 Ctrl+Shift+S: Save all / Alles opslaan / Alles speichern
 
 New projects: C:\TTBASIC\PROJECTS\NAME\NAME.TBP + MAIN.BAS.
@@ -68,3 +68,17 @@ Existing files from other folders are copied; originals are preserved.
 Use Imports "MODEL.BAS" in MAIN.BAS to execute a module.
 The .TBP remembers membership; the last project reopens on startup.
 Projects use relative paths, .PTM temporary manifests and .PBK backups.
+
+GEM / DEBUGGER (0.7)
+Project > GEM-voorbeeld laden / Load GEM example / GEM-Beispiel laden.
+F5: Run / Continue
+F8: Step into / Stap in / Einzelschritt
+Shift+F8: Step over / Stap over / Prozedurschritt
+Ctrl+Shift+F8: Step out / Stap uit / Prozedur verlassen
+F9: Breakpoint / Haltepunkt (also click the left margin)
+Ctrl+P: Request pause / Pauze aanvragen / Pause anfordern
+Ctrl+I: Inspect variable / Variabele / Variable
+Escape: Stop
+Open GEMDEMO.TBP or DEBUG.TBP via File > Open project.
+Window, Button, Label, TextBox, CheckBox; AddHandler and RemoveHandler.
+A paused program is read-only. No form designer or standalone compiler yet.

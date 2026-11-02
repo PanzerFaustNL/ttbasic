@@ -29,6 +29,15 @@
 #define ACT_NEWFILE 26
 #define ACT_ADDFILE 27
 #define ACT_SAVEALL 28
+#define ACT_STEP 29
+#define ACT_OVER 30
+#define ACT_OUT 31
+#define ACT_BREAKPOINT 32
+#define ACT_PAUSE 33
+#define ACT_STOP 34
+#define ACT_INSPECT 35
+#define ACT_GEMDEMO 36
+void menus_debug(int running,int paused);
 void menus_init(int screen_w, int screen_h);
 void menus_close(void);
 void menus_language(int language);

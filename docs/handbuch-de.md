@@ -41,7 +41,7 @@ Unter **Ansicht → Nederlands / English / Deutsch** wird die Oberflächensprach
 | Neues Projekt | Datei → Neues Projekt, Strg+N |
 | Projekt öffnen | Datei → Projekt öffnen, Strg+O |
 | Neue Quelldatei | Datei → Neue Datei, F7 |
-| Bestehende Datei hinzufügen | Datei → Datei hinzufügen, F8 |
+| Bestehende Datei hinzufügen | Datei → Datei hinzufügen, Ctrl+F7 |
 | Alle Dateien und Projekt speichern | Datei → Alles speichern, Strg+Shift+S |
 | Aktive Datei erneut von Datenträger laden | F3 |
 | Aktive Datei speichern | F2, Strg+S |
@@ -83,7 +83,7 @@ Hallo Atari TT!
 Program finished.
 ```
 
-Ziehen Sie die graue Trennleiste oberhalb der Ausgabe nach oben oder unten, um deren Hoehe zu aendern. Es werden die letzten passenden Zeilen angezeigt (maximal zehn). Fehler stoppen die Ausführung. Die Ausgabe ist textbasiert; eigene GEM-Anwendungen oder Formulare entstehen dadurch noch nicht.
+Ziehen Sie die graue Trennleiste oberhalb der Ausgabe nach oben oder unten, um deren Hoehe zu aendern. Es werden die letzten passenden Zeilen angezeigt (maximal zehn). Fehler stoppen die Ausführung. Print schreibt Text in diesen Bereich. Eigene GEM-Fenster werden mit den GUI-Objekten in Kapitel 16 erzeugt; eigenstaendige Kompilierung fehlt noch.
 
 ## 4. Zahlen, Variablen und Kommentare
 
@@ -523,7 +523,7 @@ End Class
 
 ### Vorhandene Datei hinzufügen
 
-**Datei → Datei hinzufügen** oder F8 wählen und im GEM-Dateiauswahldialog eine .BAS-Datei auswählen. Eine Datei außerhalb des Projektordners wird hineinkopiert; das Original bleibt erhalten. Eine Datei im Projektordner wird ohne Kopie registriert. Abhängige Quelldateien ebenfalls hinzufügen; relative Imports beziehen sich auf den neuen Ordner der kopierten Datei. Namenskonflikte überschreiben keine Dateien. Das Modul mit Imports in der Startdatei einbinden.
+**Datei → Datei hinzufügen** oder Ctrl+F7 wählen und im GEM-Dateiauswahldialog eine .BAS-Datei auswählen. Eine Datei außerhalb des Projektordners wird hineinkopiert; das Original bleibt erhalten. Eine Datei im Projektordner wird ohne Kopie registriert. Abhängige Quelldateien ebenfalls hinzufügen; relative Imports beziehen sich auf den neuen Ordner der kopierten Datei. Namenskonflikte überschreiben keine Dateien. Das Modul mit Imports in der Startdatei einbinden.
 
 ### Speichern und erneut öffnen
 
@@ -559,3 +559,65 @@ Mit **Strg+Leertaste** zeigt der Editor Vorschlaege. Weiterschreiben filtert die
 Nach einem Punkt erscheint die Liste automatisch. Beispielsweise zeigt `third.` die oeffentlichen Mitglieder von Reken nach `Dim third As New Reken(10)` und `Imports "REKEN.BAS"`. Innerhalb einer Klasse zeigt `Me.` auch deren private Felder. Geerbte oeffentliche Mitglieder, Methodenparameter, lokale Variablen, Klassen, BASIC-Schluesselwoerter und Collection-Mitglieder werden beruecksichtigt. Unter der Liste steht der Typ oder die Methodensignatur. Nur der Name wird eingefuegt; Klammern und Argumente selbst eingeben, beispielsweise `third.GetValue()`. Auch Konstruktorargumente werden von Hand eingegeben. Geoeffnete Module werden mit ihren ungespeicherten Aenderungen analysiert; eine Ausfuehrung ist nicht notwendig.
 
 Diese erste Version unterstuetzt einfache Empfaenger wie `third.`, `Me.` und `MyBase.`. Verkettete Ausdruecke wie `items(1).` und `factory.Create().` sowie Typinferenz aus Zuweisungen fehlen noch. Verwenden Sie ausdrueckliche `Dim ... As ...` Deklarationen. Maximal 16 Dateien, 512 Deklarationen und 64 Vorschlaege je Liste werden verarbeitet. Innerhalb von Strings und Kommentaren erscheint keine Liste.
+
+## 16. Eigene GEM-Fenster und Ereignisse (0.7)
+
+**Projekt → GEM-Beispiel laden**, danach F5, oder GEMDEMO.TBP oeffnen. Das Beispiel erzeugt ein echtes GEM-Fenster mit Textfeld, Checkbox, Schaltflaechen und Beschriftung. Die Elemente werden in BASIC erzeugt; ein visueller Formulardesigner fehlt noch.
+
+```basic
+Dim form As New Window("Mein Programm", 320, 160)
+Dim nameBox As New TextBox(form, "Marco", 16, 16, 240, 24)
+Dim buttonA As New Button(form, "Begruessen", 16, 56, 120, 28)
+Dim message As New Label(form, "Bereit", 16, 112, 280, 24)
+AddHandler buttonA.Click, AddressOf Greet
+form.Show()
+Application.Run()
+End
+
+Sub Greet(sender As Button)
+    message.Text = "Hallo " & nameBox.Text
+End Sub
+```
+
+`New Window(title, width, height)` verwendet die Groesse des Arbeitsbereichs in Pixeln. Button, Label, TextBox und CheckBox verwenden `(form, text, x, y, width, height)` relativ zum Arbeitsbereich des Elternfensters. Elemente vorzugsweise vor Show() erzeugen. Fenster besitzen Titel, Schliessknopf und koennen verschoben werden.
+
+| Objekt | Eigenschaften | Methoden | Ereignisse |
+|---|---|---|---|
+| Window | Text/Title, Visible | Show(), Close() | Load, Closed |
+| Button | Text, Enabled, Visible | — | Click |
+| Label | Text, Enabled, Visible | — | — |
+| TextBox | Text, Enabled, Visible | — | Change |
+| CheckBox | Text, Enabled, Visible, Checked | — | Click |
+
+Eigenschaften lesen oder zuweisen, etwa `buttonA.Enabled = False`. Text/Title sind Strings, die anderen Eigenschaften Boolean. Tab/Shift+Tab wechseln Textfelder. Enter aktiviert die erste sichtbare aktive Schaltflaeche. Checkboxen reagieren auf Mausklicks. Escape stoppt das Programm.
+
+`AddHandler control.Event, AddressOf Handler` bindet eine globale Sub oder Objektmethode, etwa `AddressOf controller.OnClick`. Der Handler hat keinen Parameter oder einen sender-Parameter des passenden GUI-Typs, Object oder Variant. Functions sind als Handler unzulaessig. Die Ereignisquelle muss derzeit eine einfache Variable sein; fuer ein Feld gegebenenfalls eine lokale Variable verwenden. `RemoveHandler control.Event, AddressOf Handler` entfernt die Bindung. Identische Bindungen werden einmal registriert. Aenderungen der Bindungsliste wirken fuer nachfolgende Ereignisse.
+
+`Application.Run()` verarbeitet Ereignisse, bis alle Fenster geschlossen sind. `Application.Exit()` verlaesst diese Schleife; anschliessender Code kann noch laufen. Run() darf nicht verschachtelt werden, auch nicht aus Handlern. Show() erzeugt Load beim Oeffnen. Closed folgt nach dem Schliessen und kann es nicht verhindern. Window.Visible=False schliesst ebenfalls. TextBox.Change wird bei wirklicher Textaenderung erzeugt, auch durch BASIC-Zuweisungen. Bei Programmende, Fehler oder Abbruch werden alle BASIC-Fenster aufgeraeumt.
+
+Grenzen: vier angelegte Fenster, 64 GUI-Objekte einschliesslich Fenster und 64 Ereignisbindungen je Lauf. Fenster/Elemente muessen in ihren Elternarbeitsbereich passen. GEM-Texte maximal 63 Zeichen; TextBox maximal `Min(63, (width - 8) / 8)` mit ganzzahliger Division. Fenstergroesse aendern, Timer, Listen, eigene Anwendungsmenues und eigenstaendige Kompilierung fehlen noch. Die Code-Vervollstaendigung kennt GUI-Typen, Eigenschaften, Methoden und Ereignisse.
+
+## 17. Debugger (0.7)
+
+| Aktion | Bedienung |
+|---|---|
+| Start / bis zum naechsten Haltepunkt weiter | F5 |
+| Mit Schritten starten / Einzelschritt | F8 |
+| Methodenaufruf vollstaendig ausfuehren | Shift+F8 |
+| Methode verlassen | Strg+Shift+F8 |
+| Haltepunkt der aktuellen Zeile umschalten | F9, oder linker Rand |
+| Pause anfordern | Strg+P, oder Projektmenue |
+| Erste sichtbare Variable ansehen | Strg+I, oder Variable anklicken |
+| Ausfuehrung stoppen | Escape, oder Projektmenue |
+
+**F8 ist ab 0.7 fuer den Debugger reserviert. Datei hinzufuegen liegt auf Strg+F7.** Neue Datei bleibt F7. F11/F12 werden auf der originalen Atari-Tastatur nicht benoetigt.
+
+DEBUG.TBP zeigt einen kurzen Methodenaufruf. Einen Haltepunkt auf `result = calculator.Double(startValue)` setzen. F5 laeuft bis dorthin; F8 betritt die Methode, Shift+F8 fuehrt sie vollstaendig aus, Strg+Shift+F8 laeuft bis zum Aufrufer weiter. Haltepunkte gelten auch waehrend Schritten. Die gelbe Zeile wird als Naechstes ausgefuehrt. Auch die BASIC-Anweisung `Stop` fordert eine Debuggerpause an.
+
+Rechts stehen Aufrufliste und Variablen. Mit `<`/`>` den Stackframe waehlen; der Editor zeigt seine Quellzeile. Frame 0 ist das Hauptprogramm. Parameter, lokale Variablen, Me-Felder und globale Variablen werden angezeigt. Pfeil auf/ab oder die unteren Pfeile scrollen. Anklicken oder Strg+I zeigt den dargestellten Wert und Typ. GUI-Werte enthalten ihren Text. Arrays/Collections zeigen die Elementzahl; einzelne Elemente und Felder anderer Objekte sind noch nicht aufklappbar. Die Ansicht ruft keine BASIC-Methoden auf und aendert keine Werte.
+
+Haltepunkte funktionieren auch in Click-/Change-Handlern. Die entsprechende Aktion im Programmfenster loest die Pause aus. Beim Fortsetzen erscheint das Anwendungsfenster wieder vorne. Wartet Application.Run auf Eingaben, wird eine angeforderte Pause bei der naechsten ausfuehrbaren BASIC-Zeile wirksam; Escape stoppt auch beim Warten.
+
+Unbehandelte Laufzeitfehler pausieren vor dem Abbau des Aufrufstapels. Lokale Werte bleiben damit sichtbar. F5/Escape beendet anschliessend den fehlerhaften Lauf. Fehlerhafte Zeilen koennen noch nicht geaendert und fortgesetzt werden. Quellcode ist waehrend der Pause schreibgeschuetzt. Immediate-Fenster, bedingte Haltepunkte und das Aendern laufender Variablen fehlen noch.
+
+Maximal 64 Haltepunkte werden in C:\TTBASIC\STUDIO.BRK gespeichert. Sie verweisen auf physische Dateizeilen und verschieben sich bei Einfuegen/Loeschen noch nicht automatisch. Danach kontrollieren. Kommentare, Klassen-/Methodendefinitionen und Imports werden uebersprungen; ausfuehrbare Zeilen verwenden.

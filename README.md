@@ -1,6 +1,6 @@
 # TT BASIC Studio
 
-A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.6** adds code completion (Ctrl+Space and automatic member lists after a dot) and a resizable output panel. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
+A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.7** adds native GEM windows and controls, BASIC event handlers, breakpoints, stepping and a variables/call-stack inspector. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
 
 ## Manuals
 
@@ -26,7 +26,7 @@ Output: `42`, `2`. The imported [Counter class](examples/COUNTER.BAS) has a priv
 
 ## Using the IDE
 
-Start `C:\TTBASIC\TTBASIC.PRG` in TT Medium, or at least 640 × 480. Press F5 to run the project from MAIN.BAS. Imported modules appear in the project tree and can be edited directly. Runs use unsaved in-memory sources; F2 saves the active file and keeps a `.BAK` of its previous disk contents. File → New project (Ctrl+N), Open project (Ctrl+O), New file (F7), Add existing file (F8) and Save all (Ctrl+Shift+S) manage project work.
+Start `C:\TTBASIC\TTBASIC.PRG` in TT Medium, or at least 640 × 480. Press F5 to run the project from MAIN.BAS. Imported modules appear in the project tree and can be edited directly. Runs use unsaved in-memory sources; F2 saves the active file and keeps a `.BAK` of its previous disk contents. File → New project (Ctrl+N), Open project (Ctrl+O), New file (F7), Add existing file (Ctrl+F7) and Save all (Ctrl+Shift+S) manage project work.
 
 Load examples with **Project → Load language example**, **Load polymorphism example**, **Load input example**, or **Load OO example**. Press Escape to stop a running program. In the initial Dutch UI this is **Project → OO-voorbeeld laden**. Choose the UI language under **Beeld / View / Ansicht → Nederlands / English / Deutsch**.
 
@@ -91,3 +91,5 @@ Only project files belong here. ROM images, third-party compiler files, emulator
 ## License
 
 GNU General Public License version 3; see [LICENSE](LICENSE).
+
+Try **Project → Load GEM example**, then F5, or open `GEMDEMO.TBP`. Open `DEBUG.TBP` for a small stepping example. F8 starts/steps into, Shift+F8 steps over, Ctrl+Shift+F8 steps out, F9 toggles a breakpoint, Ctrl+P requests pause, Ctrl+I inspects a variable, and Escape stops execution. GUI event handlers can be debugged. This is an initial debugger: no Immediate window, conditional breakpoints or edits while paused.

@@ -41,7 +41,7 @@ Kies **Beeld → Nederlands / English / Deutsch**. Ook de menukoppen veranderen:
 | Nieuw project | Bestand → Nieuw project, Ctrl+N |
 | Project openen | Bestand → Project openen, Ctrl+O |
 | Nieuw bronbestand | Bestand → Nieuw bestand, F7 |
-| Bestaand bestand toevoegen | Bestand → Bestand toevoegen, F8 |
+| Bestaand bestand toevoegen | Bestand → Bestand toevoegen, Ctrl+F7 |
 | Alle bestanden en project opslaan | Bestand → Alles opslaan, Ctrl+Shift+S |
 | Actief bestand opnieuw van schijf laden | F3 |
 | Actief bestand opslaan | F2, Ctrl+S |
@@ -83,7 +83,7 @@ Hallo Atari TT!
 Program finished.
 ```
 
-Sleep de grijze scheidingsbalk boven het uitvoerpaneel omhoog of omlaag om het groter of kleiner te maken. Het paneel toont de laatste regels die passen (maximaal tien). Fouten stoppen de uitvoering. De uitvoer is tekst; dit maakt nog geen zelfstandig GEM-programma of formulier.
+Sleep de grijze scheidingsbalk boven het uitvoerpaneel omhoog of omlaag om het groter of kleiner te maken. Het paneel toont de laatste regels die passen (maximaal tien). Fouten stoppen de uitvoering. Print schrijft tekst naar dit paneel. Eigen GEM-vensters maak je met de GUI-objecten uit hoofdstuk 16; zelfstandig compileren wordt nog niet ondersteund.
 
 ## 4. Getallen, variabelen en commentaar
 
@@ -523,7 +523,7 @@ End Class
 
 ### Een bestaand bestand toevoegen
 
-Kies **Bestand → Bestand toevoegen** of F8. Selecteer een .BAS-bestand in de GEM-bestandskiezer. Een bestand van buiten de projectmap wordt gekopieerd, zodat het project zelfstandig blijft. Het origineel blijft intact. Een bestand dat al in de map staat wordt alleen geregistreerd. Voeg eventuele afhankelijke bronbestanden ook toe; relatieve Imports worden vanuit de nieuwe bestandsmap opgelost. Een botsende bestandsnaam wordt niet overschreven. Ook hier gebruik je Imports om de code vanuit het startbestand te laden.
+Kies **Bestand → Bestand toevoegen** of Ctrl+F7. Selecteer een .BAS-bestand in de GEM-bestandskiezer. Een bestand van buiten de projectmap wordt gekopieerd, zodat het project zelfstandig blijft. Het origineel blijft intact. Een bestand dat al in de map staat wordt alleen geregistreerd. Voeg eventuele afhankelijke bronbestanden ook toe; relatieve Imports worden vanuit de nieuwe bestandsmap opgelost. Een botsende bestandsnaam wordt niet overschreven. Ook hier gebruik je Imports om de code vanuit het startbestand te laden.
 
 ### Opslaan en opnieuw openen
 
@@ -559,3 +559,65 @@ Druk in de editor op **Ctrl+Spatie** voor suggesties. Typ verder om de lijst te 
 Na een punt verschijnt de lijst automatisch: bijvoorbeeld `third.` toont de beschikbare openbare leden van Reken, wanneer `Dim third As New Reken(10)` en `Imports "REKEN.BAS"` aanwezig zijn. Binnen een klasse toont `Me.` ook de eigen private velden. Geërfde openbare leden, methodeparameters, lokale variabelen, klassen, BASIC-sleutelwoorden en Collection-leden worden meegenomen. Onder de lijst staat het type of de methodesignatuur. Alleen de naam wordt ingevoegd; typ bij een methode zelf de haakjes en argumenten, bijvoorbeeld `third.GetValue()`. Voeg na een constructor ook zelf de argumenten toe. Gewijzigde geopende modules worden vanuit het geheugen gelezen; imports hoeven niet eerst te worden uitgevoerd.
 
 Deze eerste versie ondersteunt eenvoudige ontvangers zoals `third.`, `Me.` en `MyBase.`. Samengestelde expressies zoals `items(1).` en `factory.Create().` en type-inferentie uit toewijzingen worden nog niet ondersteund. Gebruik een expliciete `Dim ... As ...` declaratie. De index omvat maximaal 16 bestanden en 512 declaraties, met maximaal 64 suggesties per lijst. Er verschijnt geen lijst binnen strings of commentaar.
+
+## 16. Eigen GEM-vensters en events (0.7)
+
+Open **Project → GEM-voorbeeld laden** en druk op F5, of open GEMDEMO.TBP via Bestand → Project openen. Dit maakt een echt GEM-venster met een tekstveld, checkbox, knoppen en een label. De bedieningselementen worden in BASIC-code aangemaakt; er is nog geen visuele formulierontwerper.
+
+```basic
+Dim form As New Window("Mijn programma", 320, 160)
+Dim nameBox As New TextBox(form, "Marco", 16, 16, 240, 24)
+Dim buttonA As New Button(form, "Groet", 16, 56, 120, 28)
+Dim message As New Label(form, "Klaar", 16, 112, 280, 24)
+AddHandler buttonA.Click, AddressOf Greet
+form.Show()
+Application.Run()
+End
+
+Sub Greet(sender As Button)
+    message.Text = "Hallo " & nameBox.Text
+End Sub
+```
+
+`New Window(title, width, height)` gebruikt de breedte en hoogte van het **werkgebied**, in pixels. Andere constructors gebruiken `New Button(form, text, x, y, width, height)`, met dezelfde argumenten voor Label, TextBox en CheckBox. Posities zijn relatief aan het werkgebied van het oudervenster. Maak de bedieningselementen bij voorkeur aan vóór Show(). Vensters hebben een titelbalk, een sluitknop en kunnen worden verplaatst.
+
+| Object | Eigenschappen | Methoden | Events |
+|---|---|---|---|
+| Window | Text of Title, Visible | Show(), Close() | Load, Closed |
+| Button | Text, Enabled, Visible | — | Click |
+| Label | Text, Enabled, Visible | — | — |
+| TextBox | Text, Enabled, Visible | — | Change |
+| CheckBox | Text, Enabled, Visible, Checked | — | Click |
+
+Eigenschappen kun je lezen en toewijzen: `message.Text = "Welkom"`, `buttonA.Enabled = False`, `upperBox.Checked = True`. Text/Title zijn strings; de andere eigenschappen zijn Boolean. Tab en Shift+Tab kiezen tekstvelden. Enter activeert de eerste zichtbare ingeschakelde knop; Escape stopt het programma. Een checkbox reageert op een muisklik.
+
+`AddHandler control.Event, AddressOf Handler` koppelt een event aan een globale Sub of een objectmethode, bijvoorbeeld `AddressOf controller.OnClick`. De Sub heeft geen parameters, of één sender-parameter met het passende GUI-type, Object of Variant. Een Function is geen eventhandler. De eventbron is in deze versie een eenvoudige variabelenaam; gebruik voor een veld eventueel een lokale variabele. Verwijderen kan met `RemoveHandler control.Event, AddressOf Handler`. Een identieke koppeling wordt slechts eenmaal geregistreerd. Tijdens een event wordt de lijst van handlers gekopieerd; wijzigingen aan koppelingen gelden voor volgende events.
+
+`Application.Run()` verwerkt events tot alle vensters gesloten zijn. `Application.Exit()` verlaat deze lus; code na Run() kan daarna nog worden uitgevoerd. Run() mag niet genest worden, ook niet vanuit een handler. Show() genereert Load wanneer een gesloten venster wordt geopend. Closed volgt na het sluiten; dit event kan het sluiten nog niet annuleren. Window.Visible=False sluit het venster eveneens. TextBox.Change wordt verstuurd wanneer tekst werkelijk verandert, ook door een toewijzing vanuit BASIC. Programma-einde, een fout of stoppen ruimt alle BASIC-vensters op.
+
+Grenzen: vier gelijktijdig aangemaakte vensters, 64 GUI-objecten inclusief vensters en 64 eventkoppelingen per uitvoering. Vensters en bedieningselementen moeten binnen hun ouderwerkgebied passen. GEM-teksten zijn maximaal 63 tekens. Een TextBox accepteert maximaal `Min(63, (width - 8) / 8)` tekens, met gehele deling. Deze eerste versie biedt geen venstergrootte aanpassen, timers, keuzelijsten, menu's voor eigen vensters of zelfstandig gecompileerde programma's. Code completion kent de GUI-typen, eigenschappen, methoden en events.
+
+## 17. Debuggen (0.7)
+
+| Actie | Bediening |
+|---|---|
+| Starten / doorgaan tot volgend breakpoint | F5 |
+| Starten met stappen / stap in een methode | F8 |
+| Methodeaanroep uitvoeren zonder erin te stappen | Shift+F8 |
+| Huidige methode verlaten | Ctrl+Shift+F8 |
+| Breakpoint op huidige regel wisselen | F9, of klik in de linkermarge |
+| Pauze aanvragen tijdens uitvoering | Ctrl+P, of Project-menu |
+| Eerste zichtbare variabele inspecteren | Ctrl+I, of klik op een variabele |
+| Stoppen | Escape, of Project → Uitvoering stoppen |
+
+**F8 is vanaf 0.7 voor debuggen. Bestand toevoegen is verplaatst naar Ctrl+F7.** Nieuw bestand blijft F7. De debugger heeft geen F11/F12 nodig en werkt dus met de oorspronkelijke Atari-toetsenbordfunctietoetsen.
+
+Open DEBUG.TBP om een korte methodeaanroep te volgen. Zet bijvoorbeeld met F9 een breakpoint op `result = calculator.Double(startValue)`. F5 loopt tot die regel; F8 stapt de methode binnen, Shift+F8 voert de methode volledig uit, en Ctrl+Shift+F8 loopt door tot de aanroeper verdergaat. Bestaande breakpoints blijven actief tijdens stappen. De gele regel is de volgende uit te voeren regel. `Stop` in BASIC vraagt eveneens een debuggerpauze aan.
+
+Rechts staan de aanroepstack en variabelen. Met `<` en `>` kies je een stackframe; de editor toont de bijbehorende bronregel. Het frame 0 is het hoofdprogramma. De lijst bevat parameters, lokale variabelen, Me-velden en globale variabelen. Pijl omhoog/omlaag of de pijltjes onderaan scrollen de lijst. Klik op een variabele of druk Ctrl+I om de volledige getoonde waarde en het type te lezen. GUI-objecten tonen ook hun tekst. Arrays en collecties tonen hun aantal elementen; losse elementen en velden van andere objecten zijn nog niet uitklapbaar. Inspectie voert geen BASIC-methoden uit en wijzigt geen variabelen.
+
+Je kunt ook een breakpoint binnen een Click- of Change-handler plaatsen. Het programma opent zijn venster, wacht op de bijbehorende actie en pauzeert daarna in de handler. Bij doorgaan wordt het toepassingsvenster weer naar voren gehaald. Een pauzeaanvraag terwijl Application.Run op gebruikersinvoer wacht, gaat in bij de volgende uitvoerbare BASIC-regel; Escape stopt ook tijdens dit wachten.
+
+Onbehandelde runtimefouten pauzeren vóór het afwikkelen van de aanroepstack, zodat je lokale waarden kunt bekijken. F5 of Escape beëindigt daarna de mislukte uitvoering; een foutieve regel kan nog niet worden aangepast en hervat. Broncode is tijdens een pauze alleen-lezen. Er is geen Immediate-venster, conditioneel breakpoint of variabelen wijzigen tijdens uitvoering.
+
+Maximaal 64 breakpoints worden bewaard in C:\TTBASIC\STUDIO.BRK. Ze verwijzen naar fysieke bestandsregels en schuiven in deze versie niet automatisch mee wanneer je regels invoegt of verwijdert. Controleer ze na zulke wijzigingen. Plaats ze op uitvoerbare regels; commentaar, klasse-/methodedefinities en Imports worden overgeslagen.

@@ -41,7 +41,7 @@ Choose **View → Nederlands / English / Deutsch**. View is called **Beeld** in 
 | New project | File → New project, Ctrl+N |
 | Open project | File → Open project, Ctrl+O |
 | New source file | File → New file, F7 |
-| Add an existing file | File → Add existing file, F8 |
+| Add an existing file | File → Add existing file, Ctrl+F7 |
 | Save all files and project | File → Save all, Ctrl+Shift+S |
 | Reload active file from disk | F3 |
 | Save active file | F2, Ctrl+S |
@@ -83,7 +83,7 @@ Hello Atari TT!
 Program finished.
 ```
 
-Drag the grey divider above the output panel up or down to resize it. The panel shows the most recent lines that fit (up to ten). Errors stop execution. Output is textual; the interpreter does not yet create a standalone GEM application or a visual form.
+Drag the grey divider above the output panel up or down to resize it. The panel shows the most recent lines that fit (up to ten). Errors stop execution. Print writes text to this panel. Create native GEM windows with the GUI objects in section 16; standalone compilation is not supported yet.
 
 ## 4. Numbers, variables and comments
 
@@ -523,7 +523,7 @@ End Class
 
 ### Adding an existing source
 
-Select **File → Add existing file**, or F8, and choose a .BAS file in the native GEM selector. A source outside the project directory is copied into it; the original is preserved. A file already inside that directory is registered without copying. Add any source dependencies as well: relative Imports resolve from the copied file's new directory. Conflicting filenames are never overwritten. Use Imports in the entry source to include the module.
+Select **File → Add existing file**, or Ctrl+F7, and choose a .BAS file in the native GEM selector. A source outside the project directory is copied into it; the original is preserved. A file already inside that directory is registered without copying. Add any source dependencies as well: relative Imports resolve from the copied file's new directory. Conflicting filenames are never overwritten. Use Imports in the entry source to include the module.
 
 ### Saving and reopening
 
@@ -559,3 +559,65 @@ Press **Ctrl+Space** in the editor for suggestions. Keep typing to filter, selec
 Typing a dot opens member suggestions automatically. For example, `third.` shows public Reken members after `Dim third As New Reken(10)` and `Imports "REKEN.BAS"`. Inside a class, `Me.` also includes its private fields. Suggestions include inherited public members, method parameters, local variables, classes, BASIC keywords and Collection members. The selected member's type or method signature appears below the list. Completion inserts the name; enter parentheses and arguments yourself, for example `third.GetValue()`. Constructor arguments are also entered manually. Open modules use their unsaved contents; imports do not need to be executed first.
 
 This first version handles simple receivers such as `third.`, `Me.` and `MyBase.`. Chained expressions such as `items(1).` and `factory.Create().`, and type inference from assignments, are not supported yet. Use explicit `Dim ... As ...` declarations. The index supports up to 16 files and 512 declarations, with up to 64 suggestions. Suggestions are suppressed inside strings and comments.
+
+## 16. Native GEM windows and events (0.7)
+
+Choose **Project → Load GEM example**, then F5, or open GEMDEMO.TBP. It creates a native GEM window containing a text field, checkbox, buttons and label. Controls are created in BASIC code; a visual form designer is not included yet.
+
+```basic
+Dim form As New Window("My program", 320, 160)
+Dim nameBox As New TextBox(form, "Marco", 16, 16, 240, 24)
+Dim buttonA As New Button(form, "Greet", 16, 56, 120, 28)
+Dim message As New Label(form, "Ready", 16, 112, 280, 24)
+AddHandler buttonA.Click, AddressOf Greet
+form.Show()
+Application.Run()
+End
+
+Sub Greet(sender As Button)
+    message.Text = "Hello " & nameBox.Text
+End Sub
+```
+
+`New Window(title, width, height)` takes the client-area size in pixels. Button, Label, TextBox and CheckBox use `(form, text, x, y, width, height)`, with coordinates relative to the parent client area. Prefer creating controls before Show(). Windows have a title bar, close button and can be moved.
+
+| Object | Properties | Methods | Events |
+|---|---|---|---|
+| Window | Text/Title, Visible | Show(), Close() | Load, Closed |
+| Button | Text, Enabled, Visible | — | Click |
+| Label | Text, Enabled, Visible | — | — |
+| TextBox | Text, Enabled, Visible | — | Change |
+| CheckBox | Text, Enabled, Visible, Checked | — | Click |
+
+Read or assign properties, for example `buttonA.Enabled = False`. Text/Title are Strings; the other properties are Boolean. Tab/Shift+Tab move between text fields. Enter activates the first visible enabled button. A checkbox responds to mouse clicks. Escape stops execution.
+
+`AddHandler control.Event, AddressOf Handler` accepts a global Sub or object method, such as `AddressOf controller.OnClick`. A handler takes zero parameters or one sender parameter of the corresponding GUI type, Object or Variant. Functions cannot be handlers. The event source must currently be a simple variable name; use a local variable for a field if necessary. `RemoveHandler control.Event, AddressOf Handler` removes a binding. Identical bindings are registered once. Dispatch uses a snapshot: binding changes affect subsequent events.
+
+`Application.Run()` handles events until every window has closed. `Application.Exit()` leaves that loop; statements after Run() can still execute. Run() cannot be nested, including from handlers. Show() queues Load when opening a closed window. Closed is delivered after closing and cannot cancel it. Assigning Window.Visible=False also closes it. TextBox.Change fires for actual text changes, including BASIC assignments. All BASIC windows are cleaned up on completion, error or stop.
+
+Limits: four allocated windows, 64 GUI objects including windows, and 64 bindings per run. Windows/controls must fit their parent client area. GEM text is limited to 63 characters; a TextBox accepts `Min(63, (width - 8) / 8)` using integer division. This version does not include window resizing, timers, lists, application menus or standalone compilation. Completion recognizes GUI types, properties, methods and events.
+
+## 17. Debugging (0.7)
+
+| Action | Shortcut |
+|---|---|
+| Run / continue to next breakpoint | F5 |
+| Start stepping / step into | F8 |
+| Step over a method call | Shift+F8 |
+| Step out to the caller | Ctrl+Shift+F8 |
+| Toggle current-line breakpoint | F9, or click the left gutter |
+| Request pause while running | Ctrl+P, or Project menu |
+| Inspect first visible variable | Ctrl+I, or click a variable |
+| Stop execution | Escape, or Project → Stop execution |
+
+**F8 is reserved for debugging from 0.7. Add existing file moves to Ctrl+F7.** New file remains F7. F11/F12 are not required on original Atari keyboards.
+
+Open DEBUG.TBP for a small method-call example. Set a breakpoint on `result = calculator.Double(startValue)`. F5 runs to that line, F8 enters the method, Shift+F8 completes the call, and Ctrl+Shift+F8 runs until the caller continues. Breakpoints still apply while stepping. The yellow line marks the next statement. The BASIC `Stop` statement also requests a debugger pause.
+
+The right panel shows the call stack and variables. Use `<`/`>` to select a frame and navigate to its source line; frame 0 is the main program. The list includes parameters, locals, Me fields and globals. Up/Down or the bottom arrows scroll. Click a variable or press Ctrl+I for its displayed value and type. GUI values include their text. Arrays/collections show item counts; individual items and fields of other objects cannot be expanded yet. Inspection never invokes BASIC methods or changes variables.
+
+Breakpoints also work inside Click/Change handlers: interact with the program window to reach them. Continuing brings the application window forward again. If Application.Run is waiting for input, a pause request takes effect at the next executable BASIC statement; Escape stops immediately while waiting.
+
+Unhandled runtime errors pause before unwinding the stack, allowing local inspection. F5 or Escape then terminates the failed run. Editing and resuming a failed statement is not supported. Sources are read-only while paused. There is no Immediate window, conditional breakpoint or editing of running variables yet.
+
+Up to 64 breakpoints persist in C:\TTBASIC\STUDIO.BRK. They use physical file rows and do not automatically move when lines are inserted/deleted; review them after structural edits. Set them on executable statements: comments, class/method definitions and Imports are skipped.

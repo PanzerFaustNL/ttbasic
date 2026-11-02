@@ -49,5 +49,9 @@ int main(int argc,char **argv)
     build("Imports \"REKEN.BAS\"\nDim x As Reken\nx.|");
     complete_build(source,3,2,2,path,memory_reader,&result);
     assert(has("unsaved") && !has("GetValue"));
+    build("Dim form As New Window(\"Test\",320,200)\nform.|");assert(has("Show") && has("Close") && has("Title") && has("Closed"));
+    build("Dim box As CheckBox\nbox.|");assert(has("Checked") && has("Click") && !has("Show"));
+    build("Application.|");assert(has("Run") && has("Exit"));
+    build("AddH|");assert(has("AddHandler"));
     remove(imported);puts("Completion checks passed: imports, members, inheritance, visibility, scope, signatures and incomplete code.");return 0;
 }
