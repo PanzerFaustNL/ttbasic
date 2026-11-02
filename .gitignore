@@ -21,3 +21,6 @@ STUDIO.CFG
 build/
 __pycache__/
 *.pyc
+
+*.PTM
+*.PBK

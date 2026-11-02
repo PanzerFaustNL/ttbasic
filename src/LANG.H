@@ -79,6 +79,19 @@
 #define T_M_FLOW 76
 #define T_M_POLY 77
 #define T_M_INPUT 78
+#define T_M_PROJECT_OPEN 79
+#define T_M_NEWFILE 80
+#define T_M_ADDFILE 81
+#define T_M_SAVEALL 82
+#define T_PROJECT_ERROR 83
+#define T_ALL_SAVED 84
+#define T_SWITCH_DIRTY 85
+#define T_PROJECT_OPENED 86
+#define T_PROJECT_NAME 87
+#define T_SOURCE_NAME 88
+#define T_FILE_ADDED 89
+#define T_ADD_TITLE 90
+#define T_OPEN_PROJECT 91
 char *tr(int key);
 int language_get(void);
 void language_set(int language);

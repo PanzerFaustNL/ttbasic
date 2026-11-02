@@ -25,6 +25,10 @@
 #define ACT_FLOW 22
 #define ACT_POLY 23
 #define ACT_INPUT 24
+#define ACT_PROJECT_OPEN 25
+#define ACT_NEWFILE 26
+#define ACT_ADDFILE 27
+#define ACT_SAVEALL 28
 void menus_init(int screen_w, int screen_h);
 void menus_close(void);
 void menus_language(int language);

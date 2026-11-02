@@ -1,4 +1,4 @@
-TT BASIC Studio 0.4
+TT BASIC Studio 0.5
 ===================
 
 NEDERLANDS
@@ -54,3 +54,17 @@ One-dimensional arrays, 128 items; 32 array/collection allocations per run.
 Strings: 127 chars; GEM Input: 63 chars; execution limit: 1000000 steps.
 No standalone BASIC compiler or form designer yet.
 Built and tested in Hatari / Pure C; physical TT validation pending.
+
+PROJECTS / PROJECTEN / PROJEKTE (0.5)
+Ctrl+N: New project / Nieuw project / Neues Projekt
+Ctrl+O: Open .TBP project / Project openen / Projekt oeffnen
+F7: New source file / Nieuw bestand / Neue Datei
+F8: Add existing .BAS / Bestand toevoegen / Datei hinzufuegen
+Ctrl+Shift+S: Save all / Alles opslaan / Alles speichern
+
+New projects: C:\TTBASIC\PROJECTS\NAME\NAME.TBP + MAIN.BAS.
+Use 1-8 characters for the project name (TOS filenames).
+Existing files from other folders are copied; originals are preserved.
+Use Imports "MODEL.BAS" in MAIN.BAS to execute a module.
+The .TBP remembers membership; the last project reopens on startup.
+Projects use relative paths, .PTM temporary manifests and .PBK backups.

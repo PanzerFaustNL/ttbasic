@@ -1,4 +1,4 @@
-# TT BASIC Studio 0.4 — Deutsches Handbuch
+# TT BASIC Studio 0.5 — Deutsches Handbuch
 
 TT BASIC Studio verbindet einen BASIC-Interpreter mit einer GEM-Entwicklungsumgebung für den Atari TT. Sowohl die IDE als auch das BASIC-Programm laufen auf dem Atari selbst. Diese Version wurde mit Pure C erstellt und in Hatari mit TOS 3.06, TT Medium (640 × 480, 16 Farben), 8 MiB ST-RAM und 256 MiB TT-RAM getestet. Tests auf einem physischen Atari TT stehen noch aus.
 
@@ -20,9 +20,9 @@ In der eingerichteten Hatari-Umgebung entspricht Atari-Verzeichnis C:\TTBASIC de
 Die native GEM-Menüleiste befindet sich am oberen Bildschirmrand. Links steht der Projektbaum, in der Mitte der Editor und unten die Ausgabe. Das rechte Eigenschaftenfenster wird über **Ansicht → Eigenschaften** eingeblendet.
 
 - `MAIN.BAS` ist die Startdatei des Projekts.
-- Unter **Imports** stehen die vom Projekt eingebundenen Dateien.
+- Der Projektbaum zeigt Projektdateien und erkannte Imports-Abhängigkeiten.
 - MAIN.BAS oder eine Importdatei anklicken, um sie zu bearbeiten. Änderungen und Cursorposition bleiben für jede geöffnete Datei erhalten.
-- Mit `- Demo` / `+ Demo` lässt sich der Projektbaum ein- und ausklappen.
+- Den Projektnamen zum Ein- oder Ausklappen anklicken. Die Pfeile unten blättern durch eine längere Dateiliste.
 - Ein Sternchen im Dateireiter bedeutet ungespeicherte Änderungen.
 - **F5 startet immer das Projekt ab MAIN.BAS**, auch wenn gerade eine Importdatei bearbeitet wird.
 - F5 verwendet die Arbeitsfassungen der geöffneten Dateien. Vorheriges Speichern ist nicht erforderlich.
@@ -38,8 +38,12 @@ Unter **Ansicht → Nederlands / English / Deutsch** wird die Oberflächensprach
 
 | Aktion | Menü oder Taste |
 | --- | --- |
-| Neue leere Startdatei | Datei → Neu MAIN.BAS, Strg+N |
-| Aktive Datei erneut von Datenträger laden | F3, Strg+O |
+| Neues Projekt | Datei → Neues Projekt, Strg+N |
+| Projekt öffnen | Datei → Projekt öffnen, Strg+O |
+| Neue Quelldatei | Datei → Neue Datei, F7 |
+| Bestehende Datei hinzufügen | Datei → Datei hinzufügen, F8 |
+| Alle Dateien und Projekt speichern | Datei → Alles speichern, Strg+Shift+S |
+| Aktive Datei erneut von Datenträger laden | F3 |
 | Aktive Datei speichern | F2, Strg+S |
 | Projekt ausführen | Projekt → Projekt starten, F5 |
 | OO-Beispiel in den Starteditor laden | Projekt → OO-Beispiel laden |
@@ -56,9 +60,9 @@ Die Suche unterscheidet nicht zwischen Groß- und Kleinschreibung und beginnt na
 
 ### Speichern und Beenden
 
-Speichern erzeugt zunächst eine `.TMP`-Datei und bewahrt die vorherige Datenträgerversion als `.BAK`. Zu COUNTER.BAS gehören also COUNTER.TMP und COUNTER.BAK. Geänderte Importdateien einzeln auswählen und mit F2 speichern; „Alles speichern“ gibt es noch nicht.
+Speichern erzeugt zunächst eine `.TMP`-Datei und bewahrt die vorherige Datenträgerversion als `.BAK`. Zu COUNTER.BAS gehören also COUNTER.TMP und COUNTER.BAK. Geänderte Importdateien einzeln auswählen und mit F2 speichern; Datei → Alles speichern speichert alle geänderten offenen Dateien und die Projektstruktur.
 
-Beim Beenden werden alle geöffneten Dateien auf Änderungen geprüft. Das Beenden abbrechen, um diese Dateien zuerst zu speichern. Neu MAIN.BAS und das OO-Beispiel verändern zunächst den Editor; erst Speichern ersetzt die Startdatei auf dem Datenträger. Der Projektpfad ist derzeit fest auf C:\TTBASIC eingestellt. Allgemeine Öffnen- und Speichern-unter-Dialoge fehlen noch.
+Beim Beenden werden alle geöffneten Dateien auf Änderungen geprüft. Das Beenden abbrechen, um diese Dateien zuerst zu speichern. Neues Projekt erzeugt einen eigenen Ordner mit neuer MAIN.BAS. Projekt öffnen lädt eine .TBP-Datei. Beispiele verwenden das installierte DEFAULT-Projekt. Allgemeines Speichern unter und Umbenennen von Quelldateien fehlen noch.
 
 ## 3. Das erste Programm
 
@@ -481,3 +485,69 @@ Diese Methode gehört in eine Klasse mit Implements IShow. Eine Klasse kann bis 
 Eine zentrale Liste verhindert, dass implementierte Sprachschlüsselwörter als Namen deklariert werden. Dazu gehören Kontrollstrukturen, Typen, Sichtbarkeit, Objektwörter, logische Operatoren, True/False/Nothing und Input. New ist nur als Konstruktorname eine Ausnahme. Hilfsfunktionen wie Len und Count sind kontextabhängige Funktionsnamen und keine Sprachschlüsselwörter.
 
 Zusätzliche Grenzen in 0.4: zusammen 16 Klassen/Interfaces, 16 Felder je Klasse einschließlich geerbter Felder, 64 Methoden/Prozeduren, 64 Objektinstanzen, 64 Variablen pro Bereich, acht Parameter und 32 verschachtelte Blöcke. Arrays/Collections: 32 Allokationen mit jeweils höchstens 128 Elementen. Strings: 127 Zeichen. Nach 1.000.000 Schritten wird die Ausführung begrenzt. Während eines laufenden Programms mit **Escape** vorzeitig abbrechen; im Eingabedialog Abbrechen verwenden. Die Pure-C-Version verwendet einen Stack von 512 KiB.
+
+## 14. Projekte und Quelldateien verwalten (0.5)
+
+### Neues Projekt
+
+1. **Datei → Neues Projekt** oder Strg+N wählen.
+2. Einen Namen mit ein bis acht Buchstaben/Ziffern eingeben, beispielsweise `HELLO`.
+3. Bei Änderungen zwischen Speichern, Verwerfen und Abbrechen wählen.
+4. Die IDE erzeugt `C:\TTBASIC\PROJECTS\HELLO` mit `HELLO.TBP` und einer neuen `MAIN.BAS`.
+5. Das Projekt öffnet sich sofort. F5 startet das erste Hello-Programm.
+
+Ein vorhandener Ordner gleichen Namens wird nicht überschrieben. Die acht Zeichen entsprechen den TOS-Dateinamen. Der vollständige Projektordner kann später verschoben werden; anschließend die .TBP-Datei am neuen Ort öffnen.
+
+### Neue Datei hinzufügen
+
+**Datei → Neue Datei** oder F7 wählen. `MODEL` oder `MODEL.BAS` eingeben. Die Datei wird im aktuellen Projektordner erzeugt, im .TBP registriert und im Editor geöffnet. Vorhandene Dateinamen werden abgewiesen. Eine neue Datei beginnt mit einem Kommentar.
+
+Die Projektmitgliedschaft organisiert Dateien; **Imports bestimmt die für die Ausführung eingebundenen Module**. Für eine Klasse Model aus MODEL.BAS steht in MAIN.BAS:
+
+```vb
+Imports "MODEL.BAS"
+Dim item As New Model
+Print item.GetValue()
+End
+```
+
+MODEL.BAS kann so aussehen:
+
+```vb
+Class Model
+    Public Function GetValue() As Integer
+        Return 42
+    End Function
+End Class
+```
+
+### Vorhandene Datei hinzufügen
+
+**Datei → Datei hinzufügen** oder F8 wählen und im GEM-Dateiauswahldialog eine .BAS-Datei auswählen. Eine Datei außerhalb des Projektordners wird hineinkopiert; das Original bleibt erhalten. Eine Datei im Projektordner wird ohne Kopie registriert. Abhängige Quelldateien ebenfalls hinzufügen; relative Imports beziehen sich auf den neuen Ordner der kopierten Datei. Namenskonflikte überschreiben keine Dateien. Das Modul mit Imports in der Startdatei einbinden.
+
+### Speichern und erneut öffnen
+
+- F2 speichert nur die aktive Quelldatei.
+- **Datei → Alles speichern**, Strg+Shift+S, speichert alle geänderten offenen Dateien und die Projektstruktur.
+- **Datei → Projekt öffnen**, Strg+O, wählt eine .TBP-Datei. Dies ist ein anderes Format als das Pure-C-Buildprojekt TTBASIC.PRJ.
+- F3 lädt nur die aktive Quelldatei neu.
+- Vor einem Projektwechsel fragt die IDE nach ungespeicherten Änderungen.
+- Beim nächsten Programmstart wird das zuletzt geöffnete Projekt wiederhergestellt. Ist es nicht verfügbar, wird DEFAULT versucht.
+
+Der Projektbaum enthält registrierte Dateien und erkannte Imports-Abhängigkeiten. Dateinamen zum Wechseln anklicken, die unteren Pfeile zum Blättern verwenden. F5 startet immer die Startdatei des aktiven Projekts mit den Arbeitsfassungen geöffneter Dateien.
+
+### Projektdateiformat
+
+.TBP-Dateien sind einfacher Text mit Formatversion, Projektname, Startdatei und Mitgliedern:
+
+```text
+TTBASIC_PROJECT 1
+NAME=HELLO
+ENTRY=MAIN.BAS
+FILE=MAIN.BAS
+FILE=MODEL.BAS
+```
+
+Pfade innerhalb des Projektordners werden relativ gespeichert. Dadurch lässt sich der ganze Ordner verschieben. Die Startdatei muss auch Mitglied sein. Maximal sechzehn Dateien sind registrierbar. Beim Öffnen werden die Quellen geprüft; eine fehlende oder unlesbare Datei verhindert, dass das aktuelle Projekt ersetzt wird.
+
+Änderungen der Mitgliedschaft werden sofort gespeichert. `.PTM` ist das temporäre Manifest, `.PBK` enthält die vorherige Struktur. Quelldateien behalten eigene `.TMP`- und `.BAK`-Dateien. Beispiele wechseln nach Rückfrage sicher in das installierte DEFAULT-Projekt.

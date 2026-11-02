@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.4 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.5 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -7,9 +7,10 @@
 #include "MENU.H"
 #include "LANG.H"
 #include <ctype.h>
-#define SOURCE "C:\\TTBASIC\\MAIN.BAS"
-#define TEMP "C:\\TTBASIC\\MAIN.TMP"
-#define BACKUP "C:\\TTBASIC\\MAIN.BAK"
+#include <tos.h>
+#include "PROJECT.H"
+#define DEFAULT_SOURCE "C:\\TTBASIC\\MAIN.BAS"
+
 #define KIND (NAME | CLOSER | MOVER)
 static int window, vdi, wx, wy, ww, wh, cw, ch;
 static int row, col, first, leftcol, lines = 1, changed, props;
@@ -24,13 +25,31 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.4 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.5 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
 } Document;
 static Document documents[BASIC_FILES];
 static int document_count = 1, active_document;
+static Project current_project;
+static Document pending_documents[BASIC_FILES];
+static char tree_paths[BASIC_FILES*2][BASIC_PATH];
+static int tree_count, tree_first, tree_rows;
+static void project_status(void);
+static void save_settings(void);
+static int save_all(void);
+static int open_project(char *path);
+static void build_tree(void)
+{
+    int i,j;char *path;
+    tree_count=0;
+    for(i=0;i<current_project.count+basic_file_count();++i){
+        path=i<current_project.count ? current_project.members[i] : basic_file_path(i-current_project.count);
+        for(j=0;j<tree_count;++j)if(project_equal(tree_paths[j],path))break;
+        if(j==tree_count && tree_count<BASIC_FILES*2)strcpy(tree_paths[tree_count++],path);
+    }
+}
 static char *document_name(void)
 {
     char *p, *name;
@@ -64,7 +83,8 @@ static BasicSource cached_file(char *path, int *count)
 static void scan_files(void)
 {
     cache_current();
-    basic_scan_project(documents[0].text, documents[0].count, SOURCE);
+    basic_scan_project(documents[0].text, documents[0].count, current_project.members[0]);
+    build_tree();
 }
 static void activate_document(int index)
 {
@@ -73,10 +93,10 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.4 - %.64s", document_name());
+    sprintf(title, "TT BASIC Studio 0.5 - %.8s / %.40s", current_project.name, document_name());
     wind_set(window, WF_NAME, title);
 }
-static void open_import(int index);
+static void open_path(char *path);
 static int discard_all(void);
 static int minimum(int a, int b) { return a < b ? a : b; }
 static int maximum(int a, int b) { return a > b ? a : b; }
@@ -162,7 +182,7 @@ static void heading(int x, int y, int width, char *label)
 }
 static void paint(void)
 {
-    int i, y, line, bottom, panel, imported;
+    int i, y, line, bottom, panel;
     char buf[100];
     layout(); bottom = wy + wh - 118;
     fill(wx, wy, ww, wh, 8);
@@ -174,25 +194,24 @@ static void paint(void)
     if (show_tree) {
         fill(wx + 6, wy + 40, 118, wh - 68, 0);
         heading(wx + 6, wy + 40, 118, tr(T_PROJECT));
-        text(wx + 12, wy + 84, 1, tree_expanded ? "- Demo" : "+ Demo", 106);
-        if (tree_expanded) {
-            fill(wx + 20, wy + 94, 1, 40, 9);
-            text(wx + 28, wy + 110, 9, tr(T_SOURCE), 90);
-            fill(wx + 24, wy + 119, 98, 22, active_document == 0 ? 4 : 8);
-            text(wx + 27, wy + 136, active_document == 0 ? 0 : 1, "MAIN.BAS", 92);
-        }
-        if (tree_expanded && basic_file_count() > 1) {
-            text(wx + 13, wy + 171, 9, "Imports", 106);
-            imported = basic_file_count() - 1;
-            for (i = 1; i <= imported; ++i) {
-                y = wy + 175 + i * 18;
-                if (y >= wy + wh - 60) break;
-                text(wx + 20, y, path_equal(basic_file_path(i), documents[active_document].path) ? 4 : 1, basic_file_name(i), 100);
+        sprintf(buf,"%s %.8s",tree_expanded ? "-" : "+",current_project.name);
+        text(wx + 12,wy + 84,1,buf,106);
+        if(tree_expanded){
+            text(wx + 14,wy + 110,9,tr(T_SOURCE),100);
+            tree_rows=maximum(1,(wh-170)/18);
+            if(tree_first>=tree_count)tree_first=maximum(0,tree_count-1);
+            for(i=0;i<tree_rows && tree_first+i<tree_count;++i){
+                int selected;
+                panel=tree_first+i;y=wy+119+i*18;
+                selected=path_equal(tree_paths[panel],documents[active_document].path);
+                if(selected)fill(wx+8,y,114,18,4);
+                text(wx+14,y+15,selected?0:1,project_basename(tree_paths[panel]),108);
             }
-            if (i <= imported) text(wx + 20, y, 9, "...", 100);
         }
-        sprintf(buf, tr(T_FILE_COUNT), maximum(1, basic_file_count()));
-        text(wx + 13, wy + wh - 44, 9, buf, 106);
+        sprintf(buf,"%d",tree_count);
+        text(wx+42,wy+wh-44,9,buf,60);
+        text(wx+14,wy+wh-44,1,"^",16);
+        text(wx+102,wy+wh-44,1,"v",16);
     }
     fill(editor_x, wy + 40, editor_w, 24, 0);
     fill(editor_x, wy + 40, minimum(144, editor_w), 3, 4);
@@ -278,27 +297,12 @@ static int discard(void)
 }
 static void open_source(void)
 {
-    FILE *f;
-    static char incoming[MAX_LINES][LINE_LEN];
-    char buf[LINE_LEN + 3];
-    int n, len, failed;
-    if (!discard()) return;
-    f = fopen(documents[active_document].path, "r");
-    if (!f) { strcpy(status, tr(T_OPEN_FAILED)); return; }
-    memset(incoming, 0, sizeof(incoming)); n = 0; failed = 0;
-    while (fgets(buf, sizeof(buf), f)) {
-        len = strlen(buf);
-        while (len && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) buf[--len] = 0;
-        if (n == MAX_LINES || len >= LINE_LEN) { failed = 1; break; }
-        strcpy(incoming[n++], buf);
-    }
-    if (ferror(f)) failed = 1;
-    fclose(f);
-    if (failed) { strcpy(status, tr(T_FILE_TOO_BIG)); return; }
-    memcpy(source, incoming, sizeof(source)); lines = n ? n : 1;
-    row = col = first = leftcol = changed = error_line = undo_ready = 0;
-    scan_files();
-    sprintf(status, tr(T_OPENED), document_name());
+    static char incoming[MAX_LINES][LINE_LEN];int count;
+    if(!discard())return;
+    if(!project_read_source(documents[active_document].path,incoming,&count)){project_status();return;}
+    memcpy(source,incoming,sizeof(source));lines=count;
+    row=col=first=leftcol=changed=error_line=undo_ready=0;
+    scan_files();sprintf(status,tr(T_OPENED),document_name());
 }
 static void save_source(void)
 {
@@ -356,7 +360,7 @@ static void run_source(void)
 {
     show_output = 1;
     cache_current(); strcpy(status,tr(T_RUNNING)); refresh();
-    error_line = basic_run_project(documents[0].text, documents[0].count, SOURCE, output, &out_used);
+    error_line = basic_run_project(documents[0].text, documents[0].count, current_project.members[0], output, &out_used);
     if (error_line) {
         if (!path_equal(documents[active_document].path, basic_error_path()))
             error_line = active_document == 0 ? basic_error_main_line() : -1;
@@ -389,14 +393,14 @@ static void find_next(int beginning)
     }
     strcpy(status, tr(T_NOT_FOUND));
 }
-static void open_import(int index)
+static void open_path(char *requested)
 {
     char path[BASIC_PATH], buf[LINE_LEN + 3];
     FILE *f;
     Document *d;
     int i, n, len, failed;
-    if (index < 0 || index >= basic_file_count()) return;
-    strcpy(path, basic_file_path(index)); cache_current();
+    if(strlen(requested)>=BASIC_PATH)return;
+    strcpy(path,requested); cache_current();
     for (i = 0; i < document_count; ++i) if (path_equal(path, documents[i].path)) {
         activate_document(i); return;
     }
@@ -426,22 +430,117 @@ static int discard_all(void)
     if (!count) return 1;
     return form_alert(1, tr(T_CLOSE_DIRTY)) == 2;
 }
+static void project_status(void)
+{
+    sprintf(status,tr(T_PROJECT_ERROR),project_error());
+}
+static void save_settings(void)
+{
+    FILE *f;
+    f=fopen("C:\\TTBASIC\\STUDIO.CFG","w");
+    if(f){fprintf(f,"%d\n%s\n",language_get(),current_project.file);fclose(f);}
+}
+static int save_all(void)
+{
+    int old,i;cache_current();old=active_document;
+    for(i=0;i<document_count;++i)if(documents[i].dirty){
+        activate_document(i);save_source();cache_current();if(changed)return 0;
+    }
+    activate_document(old);
+    if(!project_save(&current_project)){project_status();return 0;}
+    save_settings();strcpy(status,tr(T_ALL_SAVED));return 1;
+}
+static int confirm_switch(void)
+{
+    int i,count,choice;cache_current();count=0;
+    for(i=0;i<document_count;++i)if(documents[i].dirty)++count;
+    if(!count)return 1;
+    choice=form_alert(1,tr(T_SWITCH_DIRTY));
+    if(choice==1)return save_all();return choice==2;
+}
+static int activate_project(Project *candidate)
+{
+    int i;
+    memset(pending_documents,0,sizeof(pending_documents));
+    for(i=0;i<candidate->count;++i){
+        strcpy(pending_documents[i].path,candidate->members[i]);
+        if(!project_read_source(candidate->members[i],pending_documents[i].text,&pending_documents[i].count)){
+            project_status();return 0;
+        }
+    }
+    current_project=*candidate;memcpy(documents,pending_documents,sizeof(documents));
+    document_count=candidate->count;active_document=tree_first=out_used=0;
+    activate_document(0);scan_files();save_settings();
+    sprintf(status,tr(T_PROJECT_OPENED),current_project.name);return 1;
+}
+static int open_project(char *path)
+{
+    Project candidate;
+    if(!project_load(&candidate,path)){project_status();return 0;}
+    return activate_project(&candidate);
+}
+static int make_directory(char *path) { return Dcreate(path)>=0; }
+static int choose_file(char *out,char *filter,char *title)
+{
+    char selection[16],path[BASIC_PATH],*p;int button;
+    if(!project_join(path,current_project.directory,filter)){project_status();return 0;}
+    selection[0]=0;button=0;
+    if(!fsel_exinput(path,selection,&button,title)||!button||!selection[0])return 0;
+    p=project_basename(path);*p=0;
+    return project_join(out,path,selection);
+}
+static void new_project(void)
+{
+    Project candidate;char name[64];name[0]=0;
+    if(!input_dialog(tr(T_PROJECT_NAME),name,sizeof(name)))return;
+    if(!confirm_switch())return;
+    Dcreate("C:\\TTBASIC\\PROJECTS");
+    if(!project_create(&candidate,"C:\\TTBASIC\\PROJECTS",name,make_directory)){project_status();return;}
+    activate_project(&candidate);
+}
+static void new_file(void)
+{
+    char name[64];name[0]=0;cache_current();
+    if(!input_dialog(tr(T_SOURCE_NAME),name,sizeof(name)))return;
+    if(!project_new_file(&current_project,name)){project_status();return;}
+    build_tree();open_path(current_project.members[current_project.count-1]);
+    tree_first=maximum(0,tree_count-tree_rows);save_settings();
+    strcpy(status,tr(T_FILE_ADDED));
+}
+static void add_file(void)
+{
+    char path[BASIC_PATH];int index;
+    if(!choose_file(path,"*.BAS",tr(T_ADD_TITLE)))return;
+    if(!project_read_source(path,pending_documents[0].text,&index)){project_status();return;}
+    index=project_add_file(&current_project,path);
+    if(!index){project_status();return;}
+    build_tree();open_path(current_project.members[index-1]);
+    tree_first=maximum(0,tree_count-tree_rows);save_settings();strcpy(status,tr(T_FILE_ADDED));
+}
 static void action(int command)
 {
     int i;
     switch (command) {
-    case ACT_NEW:
-        cache_current();
-        if (active_document) activate_document(0);
-        if (!discard()) break;
-        remember(); memset(source, 0, sizeof(source)); lines = 1;
-        row = col = first = leftcol = error_line = out_used = 0;
-        scan_files();
-        changed = 1; strcpy(status, tr(T_NEW_STATUS)); break;
+    case ACT_NEW: new_project();break;
+    case ACT_PROJECT_OPEN:
+        {
+            char path[BASIC_PATH];
+            if(choose_file(path,"*.TBP",tr(T_OPEN_PROJECT)) && confirm_switch())open_project(path);
+        }
+        break;
+    case ACT_NEWFILE:new_file();break;
+    case ACT_ADDFILE:add_file();break;
+    case ACT_SAVEALL:save_all();break;
     case ACT_FLOW:
     case ACT_POLY:
     case ACT_INPUT:
     case ACT_DEMO:
+        if(!path_equal(current_project.members[0],DEFAULT_SOURCE)){
+            Project legacy;
+            if(!confirm_switch())break;
+            project_default(&legacy,DEFAULT_SOURCE);
+            if(!activate_project(&legacy))break;
+        }
         cache_current();
         if (active_document) activate_document(0);
         if (!discard()) break;
@@ -500,11 +599,7 @@ static void action(int command)
     case ACT_LANG_EN:
     case ACT_LANG_DE:
         menus_language(command - ACT_LANG_NL);
-        {
-            FILE *settings;
-            settings = fopen("C:\\TTBASIC\\STUDIO.CFG", "w");
-            if (settings) { fprintf(settings, "%d\n", language_get()); fclose(settings); }
-        }
+        save_settings();
         strcpy(status, tr(T_LANG_CHANGED)); break;
     case ACT_ABOUT:
         form_alert(1, tr(T_ABOUT)); break;
@@ -519,8 +614,8 @@ static void edit(int key, int state)
     ascii = key & 255; scan = (key >> 8) & 255; len = strlen(source[row]);
     if (state & 4) {
         switch (scan) {
-        case 31: action(ACT_SAVE); return;
-        case 24: action(ACT_OPEN); return;
+        case 31: action((state & 3)?ACT_SAVEALL:ACT_SAVE); return;
+        case 24: action(ACT_PROJECT_OPEN); return;
         case 49: action(ACT_NEW); return;
         case 16: action(ACT_QUIT); return;
         case 44: action(ACT_UNDO); return;
@@ -536,6 +631,8 @@ static void edit(int key, int state)
     if (scan == 62) { action(ACT_PROPS); return; }
     if (scan == 63) { action(ACT_RUN); return; }
     if (scan == 64) { action(ACT_NEXT); return; }
+    if (scan == 65) { action(ACT_NEWFILE); return; }
+    if (scan == 66) { action(ACT_ADDFILE); return; }
     if (scan == 72) { if (row) --row; }
     else if (scan == 80) { if (row < lines - 1) ++row; }
     else if (scan == 75) { if (col) --col; else if (row) { --row; col = strlen(source[row]); } }
@@ -570,10 +667,16 @@ int main(void)
     int in[11], out[57], dx, dy, dw, dh, bw, bh, i;
     int msg[8], events, mx, my, mb, ks, key, clicks, top, junk, selected_language;
     FILE *settings;
+    char last_project[BASIC_PATH];
+    last_project[0]=0;
     if (appl_init() < 0) return 1;
     settings = fopen("C:\\TTBASIC\\STUDIO.CFG", "r");
     if (settings) {
         if (fscanf(settings, "%d", &selected_language) == 1) language_set(selected_language);
+        fgets(last_project,sizeof(last_project),settings);
+        if(fgets(last_project,sizeof(last_project),settings)){
+            int n;n=strlen(last_project);while(n&&(last_project[n-1]=='\r'||last_project[n-1]=='\n'))last_project[--n]=0;
+        }else last_project[0]=0;
         fclose(settings);
     }
     strcpy(status, tr(T_READY));
@@ -595,10 +698,20 @@ int main(void)
     if (window < 0) { menus_close(); v_clsvwk(vdi); appl_exit(); return 1; }
     wind_set(window, WF_NAME, title);
     wind_open(window, dx, dy, dw, dh);
-    strcpy(documents[0].path, SOURCE); documents[0].count = 1;
+    project_default(&current_project,DEFAULT_SOURCE);
+    strcpy(documents[0].path,DEFAULT_SOURCE);documents[0].count=1;
     basic_set_reader(cached_file);
     basic_set_input(runtime_input); basic_set_poll(runtime_poll);
-    open_source(); layout(); graf_mouse(ARROW, 0L); done = 0;
+    if(!last_project[0] || !open_project(last_project)){
+        char default_project[BASIC_PATH];
+        strcpy(default_project,current_project.file);
+        if(!open_project(default_project)){
+            project_default(&current_project,DEFAULT_SOURCE);
+            strcpy(documents[0].path,DEFAULT_SOURCE);document_count=1;active_document=changed=0;
+            open_source();project_save(&current_project);save_settings();
+        }
+    }
+    layout();graf_mouse(ARROW,0L);done=0;
     menus_state(0, 0, show_tree, props, show_output);
     while (!done) {
         events = evnt_multi(MU_MESAG | MU_KEYBD | MU_BUTTON, 1, 1, 1,
@@ -625,10 +738,12 @@ int main(void)
                 else if (mx >= wx + 224 && mx < wx + 360) action(ACT_RUN);
             } else if (show_tree && mx >= wx + 6 && mx < wx + 124 && my >= wy + 65 && my < wy + 89) {
                 tree_expanded = !tree_expanded;
-            } else if (show_tree && tree_expanded && mx >= wx + 24 && mx < wx + 124 && my >= wy + 119 && my < wy + 141) {
-                cache_current(); activate_document(0);
-            } else if (show_tree && tree_expanded && mx >= wx + 6 && mx < wx + 124 && my >= wy + 180 && my < wy + wh - 60) {
-                i = (my - wy - 180) / 18 + 1; open_import(i);
+            } else if(show_tree && tree_expanded && mx>=wx+6 && mx<wx+124 && my>=wy+119 && my<wy+119+tree_rows*18){
+                i=tree_first+(my-wy-119)/18;
+                if(i<tree_count)open_path(tree_paths[i]);
+            } else if(show_tree && mx>=wx+6 && mx<wx+124 && my>=wy+wh-60 && my<wy+wh-30){
+                if(mx<wx+40)tree_first=maximum(0,tree_first-1);
+                else if(mx>wx+90)tree_first=minimum(maximum(0,tree_count-tree_rows),tree_first+1);
             } else if (mx >= editor_x + 36 && mx < editor_x + editor_w &&
                        my >= editor_y && my < editor_y + editor_h) {
                 row = minimum(lines - 1, first + (my - editor_y) / ch);

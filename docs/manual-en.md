@@ -1,4 +1,4 @@
-# TT BASIC Studio 0.4 — English manual
+# TT BASIC Studio 0.5 — English manual
 
 TT BASIC Studio combines a BASIC interpreter with a GEM development environment for the Atari TT. Both the IDE and your BASIC program run on the Atari itself. This version was built with Pure C and tested in Hatari with TOS 3.06, TT Medium (640 × 480, 16 colours), 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT hardware testing is still pending.
 
@@ -20,9 +20,9 @@ In the configured Hatari installation, Atari directory `C:\TTBASIC` maps to the 
 The native GEM menu bar is at the top of the screen. The project tree is on the left, the editor in the centre, and output at the bottom. Show the properties panel using **View → Properties**.
 
 - `MAIN.BAS` is the project entry point.
-- The **Imports** group lists files loaded by the project.
+- The project tree lists project files and discovered Imports dependencies.
 - Click MAIN.BAS or an imported file to edit it. Each open file retains its edits and cursor position.
-- Click `- Demo` / `+ Demo` to collapse or expand the project tree.
+- Click the project name to collapse or expand the tree. The arrows at the bottom scroll a long file list.
 - An asterisk on the file tab means that file has unsaved changes.
 - **F5 always runs MAIN.BAS and its dependencies**, even when the active editor displays an imported file.
 - F5 uses the in-memory versions of open files; saving first is not required.
@@ -38,8 +38,12 @@ Choose **View → Nederlands / English / Deutsch**. View is called **Beeld** in 
 
 | Action | Command |
 | --- | --- |
-| New empty entry file | File → New MAIN.BAS, Ctrl+N |
-| Reload active file from disk | F3, Ctrl+O |
+| New project | File → New project, Ctrl+N |
+| Open project | File → Open project, Ctrl+O |
+| New source file | File → New file, F7 |
+| Add an existing file | File → Add existing file, F8 |
+| Save all files and project | File → Save all, Ctrl+Shift+S |
+| Reload active file from disk | F3 |
 | Save active file | F2, Ctrl+S |
 | Run project | Project → Run project, F5 |
 | Load the OO example into the entry editor | Project → Load OO example |
@@ -56,9 +60,9 @@ Search ignores case and wraps to the beginning. The clipboard holds **a whole li
 
 ### Saving and closing
 
-Saving first writes a `.TMP` file and preserves the previous disk version as `.BAK`. For COUNTER.BAS these are COUNTER.TMP and COUNTER.BAK. Save modified modules individually by selecting them and pressing F2; there is no Save All yet.
+Saving first writes a `.TMP` file and preserves the previous disk version as `.BAK`. For COUNTER.BAS these are COUNTER.TMP and COUNTER.BAK. Save modified modules individually by selecting them and pressing F2; File → Save all saves all modified open files and the project layout.
 
-On exit the IDE checks all open files for unsaved changes. Cancel closing to save them first. New MAIN.BAS and Load OO example change the editor; the disk entry file is replaced only when you save it. The project directory is currently fixed at `C:\TTBASIC`; general Open and Save As dialogs are not implemented.
+On exit the IDE checks all open files for unsaved changes. Cancel closing to save them first. New project creates a separate directory with a fresh MAIN.BAS. Open project loads a .TBP file. Examples use the installed DEFAULT project. General source-file Save As and rename operations are not implemented.
 
 ## 3. Your first program
 
@@ -481,3 +485,69 @@ This method belongs inside a class declaring Implements IShow. A class can direc
 A central registry rejects implemented language keywords as declared names. It covers structural keywords, types, visibility, object keywords, logical operators, True/False/Nothing and Input. New is allowed only as a constructor name. Helpers such as Len and Count are contextual function names, not language keywords.
 
 Additional 0.4 limits: 16 classes/interfaces total, 16 fields per class including inherited fields, 64 methods/procedures, 64 object instances, 64 variables per scope, eight parameters and 32 nested blocks. Arrays/collections allow 32 allocations of up to 128 elements; strings hold 127 characters. Execution stops after 1,000,000 steps to bound runaway programs. Press **Escape** while a program runs to cancel sooner; use Cancel in an input dialog. The Pure C build uses a 512 KiB stack.
+
+## 14. Managing projects and source files (0.5)
+
+### Starting a new project
+
+1. Select **File → New project**, or Ctrl+N.
+2. Enter one to eight letters/digits, for example `HELLO`.
+3. If files have changes, choose Save, Discard or Cancel.
+4. Studio creates `C:\TTBASIC\PROJECTS\HELLO`, containing `HELLO.TBP` and a fresh `MAIN.BAS`.
+5. The project opens immediately. Press F5 to run the initial Hello program.
+
+An existing directory with the same name is never overwritten. Eight-character names fit TOS filename constraints. You may move the complete project directory later and open its .TBP at the new location.
+
+### Adding a new file
+
+Select **File → New file**, or F7. Enter `MODEL` or `MODEL.BAS`. The source is created inside the active project directory, recorded in the .TBP and opened in the editor. Existing names are rejected. A new file initially contains a comment.
+
+Project membership organizes sources; **Imports determines which modules participate in execution**. To use a Model class from MODEL.BAS, write this in MAIN.BAS:
+
+```vb
+Imports "MODEL.BAS"
+Dim item As New Model
+Print item.GetValue()
+End
+```
+
+MODEL.BAS could contain:
+
+```vb
+Class Model
+    Public Function GetValue() As Integer
+        Return 42
+    End Function
+End Class
+```
+
+### Adding an existing source
+
+Select **File → Add existing file**, or F8, and choose a .BAS file in the native GEM selector. A source outside the project directory is copied into it; the original is preserved. A file already inside that directory is registered without copying. Add any source dependencies as well: relative Imports resolve from the copied file's new directory. Conflicting filenames are never overwritten. Use Imports in the entry source to include the module.
+
+### Saving and reopening
+
+- F2 saves only the active source.
+- **File → Save all**, Ctrl+Shift+S, saves every modified open source and the project layout.
+- **File → Open project**, Ctrl+O, selects a .TBP file. This is different from the Pure C build project TTBASIC.PRJ.
+- F3 reloads only the active source file.
+- Switching projects prompts for pending edits.
+- The last project is restored on the next application start. If unavailable, Studio tries the DEFAULT project.
+
+The tree contains registered files and discovered Imports dependencies. Click a filename to switch editors. Bottom arrows scroll the list. F5 always runs the active project's entry source, using in-memory versions of open files.
+
+### Manifest format
+
+.TBP files are plain text with a format version, project name, entry source and members:
+
+```text
+TTBASIC_PROJECT 1
+NAME=HELLO
+ENTRY=MAIN.BAS
+FILE=MAIN.BAS
+FILE=MODEL.BAS
+```
+
+Paths inside the project directory are stored relatively, allowing the directory to be moved as a unit. The entry source must also be a member. At most sixteen files may be registered. Opening validates registered sources; a missing or unreadable file prevents replacing the current workspace.
+
+Membership changes save immediately. `.PTM` is a temporary manifest and `.PBK` preserves the previous layout. Source files keep their own `.TMP` and `.BAK`. Loading examples switches safely to the installed DEFAULT project before opening the example.

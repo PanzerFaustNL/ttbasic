@@ -3,6 +3,7 @@
 /tests/*.c text eol=lf
 *.H text eol=crlf
 *.BAS text eol=crlf
+*.TBP text eol=crlf
 *.PRJ text eol=crlf
 *.LNK text eol=crlf
 *.TXT text eol=crlf

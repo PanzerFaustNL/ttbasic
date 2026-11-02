@@ -13,8 +13,8 @@ def install(drive_c: Path) -> None:
             if not source.is_file():
                 continue
             destination = target / source.name
-            if source.suffix.upper() == ".BAS" and destination.exists():
-                print(f"Kept existing program: {destination}")
+            if source.suffix.upper() in (".BAS", ".TBP") and destination.exists():
+                print(f"Kept existing source/project: {destination}")
                 continue
             data = source.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
             destination.write_bytes(data)

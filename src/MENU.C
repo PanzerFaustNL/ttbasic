@@ -5,7 +5,7 @@
 #include "LANG.H"
 #define MAX_OBJS 80
 static OBJECT menu[MAX_OBJS];
-static int actions[MAX_OBJS], items[25], used;
+static int actions[MAX_OBJS], items[29], used;
 static int screen_width, screen_height;
 static char *titles[6];
 static int title_width[] = { 10, 9, 12, 10, 9, 8 };
@@ -60,11 +60,17 @@ void menus_init(int screen_w, int screen_h)
             ITEM("  Accessoire 3", 0); ITEM("  Accessoire 4", 0);
             ITEM("  Accessoire 5", 0); ITEM("  Accessoire 6", 0);
         } else if (i == 1) {
-            ITEM(tr(T_M_NEW), ACT_NEW);
-            ITEM(tr(T_M_OPEN), ACT_OPEN);
-            ITEM(tr(T_M_SAVE), ACT_SAVE);
-            ITEM("-----------------------------", 0);
-            ITEM(tr(T_M_QUIT), ACT_QUIT);
+            ITEM(tr(T_M_NEW),ACT_NEW);
+            ITEM(tr(T_M_PROJECT_OPEN),ACT_PROJECT_OPEN);
+            ITEM("-----------------------------",0);
+            ITEM(tr(T_M_NEWFILE),ACT_NEWFILE);
+            ITEM(tr(T_M_ADDFILE),ACT_ADDFILE);
+            ITEM("-----------------------------",0);
+            ITEM(tr(T_M_SAVE),ACT_SAVE);
+            ITEM(tr(T_M_SAVEALL),ACT_SAVEALL);
+            ITEM(tr(T_M_OPEN),ACT_OPEN);
+            ITEM("-----------------------------",0);
+            ITEM(tr(T_M_QUIT),ACT_QUIT);
         } else if (i == 2) {
             ITEM(tr(T_M_UNDO), ACT_UNDO);
             ITEM("-------------------------------", 0);

@@ -1,4 +1,4 @@
-# TT BASIC Studio 0.4 — Nederlandstalige handleiding
+# TT BASIC Studio 0.5 — Nederlandstalige handleiding
 
 TT BASIC Studio is een BASIC-interpreter en GEM-ontwikkelomgeving voor de Atari TT. De IDE en je BASIC-programma draaien op de Atari zelf. De huidige versie is gebouwd met Pure C en getest in Hatari met TOS 3.06, TT Medium (640 × 480, 16 kleuren), 8 MiB ST-RAM en 256 MiB TT-RAM. Testen op een fysieke TT staat nog open.
 
@@ -20,9 +20,9 @@ In de ingerichte Hatari-omgeving komt Atari-pad `C:\TTBASIC` overeen met de Mac-
 De menubalk staat bovenaan het scherm. Links staat het project, centraal de editor en onderaan de uitvoer. Het eigenschappenpaneel rechts kun je tonen via **Beeld → Eigenschappen**.
 
 - `MAIN.BAS` is het startbestand van het project.
-- Onder **Imports** verschijnen externe bestanden die vanuit het project worden gebruikt.
+- De projectboom toont de bestanden uit het project en de gevonden Imports-afhankelijkheden.
 - Klik op `MAIN.BAS` of een importbestand om het te bewerken. Cursorpositie en wijzigingen blijven per geopend bestand bewaard.
-- Klik op `- Demo` of `+ Demo` om de projectboom in of uit te klappen.
+- Klik op de projectnaam om de projectboom in of uit te klappen. Met de pijltjes onderaan blader je door een lange bestandslijst.
 - Een sterretje op de bestands-tab betekent dat het actieve bestand is gewijzigd.
 - **F5 voert altijd het project vanaf `MAIN.BAS` uit**, ook als je op dat moment `COUNTER.BAS` bewerkt.
 - F5 gebruikt de werkversies van geopende bestanden. Je hoeft wijzigingen dus niet eerst op te slaan.
@@ -38,8 +38,12 @@ Kies **Beeld → Nederlands / English / Deutsch**. Ook de menukoppen veranderen:
 
 | Actie | Menu of toets |
 | --- | --- |
-| Nieuw leeg startbestand | Bestand → Nieuw MAIN.BAS, Ctrl+N |
-| Actief bestand opnieuw van schijf laden | F3, Ctrl+O |
+| Nieuw project | Bestand → Nieuw project, Ctrl+N |
+| Project openen | Bestand → Project openen, Ctrl+O |
+| Nieuw bronbestand | Bestand → Nieuw bestand, F7 |
+| Bestaand bestand toevoegen | Bestand → Bestand toevoegen, F8 |
+| Alle bestanden en project opslaan | Bestand → Alles opslaan, Ctrl+Shift+S |
+| Actief bestand opnieuw van schijf laden | F3 |
 | Actief bestand opslaan | F2, Ctrl+S |
 | Project uitvoeren | Project → Uitvoeren, F5 |
 | OO-voorbeeld in MAIN.BAS laden | Project → OO-voorbeeld laden |
@@ -56,9 +60,9 @@ Zoeken is niet hoofdlettergevoelig en gaat na het laatste resultaat verder aan h
 
 ### Opslaan en sluiten
 
-Opslaan schrijft eerst een tijdelijk `.TMP`-bestand en bewaart de vorige schijfversie als `.BAK`. Voor `COUNTER.BAS` zijn dat `COUNTER.TMP` en `COUNTER.BAK`. Bewerkte importbestanden sla je afzonderlijk op door ze te openen en F2 te gebruiken. Er is nog geen ‘Alles opslaan’.
+Opslaan schrijft eerst een tijdelijk `.TMP`-bestand en bewaart de vorige schijfversie als `.BAK`. Voor `COUNTER.BAS` zijn dat `COUNTER.TMP` en `COUNTER.BAK`. Bewerkte importbestanden sla je afzonderlijk op door ze te openen en F2 te gebruiken. Met Bestand → Alles opslaan worden alle geopende gewijzigde bestanden en de projectindeling opgeslagen.
 
-Bij afsluiten controleert de IDE alle geopende bestanden op wijzigingen. Annuleer afsluiten om die bestanden eerst op te slaan. ‘Nieuw MAIN.BAS’ en het OO-voorbeeld veranderen de editor; pas bij F2 vervang je het startbestand op schijf. De editor gebruikt momenteel een vast projectpad, `C:\TTBASIC`, en heeft nog geen algemene Openen/Opslaan-als-dialoog.
+Bij afsluiten controleert de IDE alle geopende bestanden op wijzigingen. Annuleer afsluiten om die bestanden eerst op te slaan. Nieuw project maakt een eigen map met een nieuw MAIN.BAS. Project openen gebruikt een .TBP-bestand. Voorbeelden gebruiken het geïnstalleerde DEFAULT-project. Er is nog geen algemene Opslaan-als- of hernoemfunctie voor bronbestanden.
 
 ## 3. Je eerste programma
 
@@ -481,3 +485,69 @@ Deze methode hoort binnen een klasse met Implements IShow. Een klasse kan maxima
 De interpreter gebruikt een centrale lijst van geïmplementeerde taalwoorden en weigert die als gedeclareerde naam. Daaronder vallen de structuurwoorden, typen, zichtbaarheid, objectwoorden, logische operatoren, True/False/Nothing en Input. New is alleen als constructornaam een uitzondering. Namen van hulpfuncties zoals Len en Count zijn contextuele functienamen en geen taalkeywords.
 
 Extra grenzen in 0.4: 16 klassen/interfaces samen, 16 velden inclusief geërfde velden per klasse, 64 methoden/procedures, 64 objectinstanties, 64 variabelen per scope, acht parameters en 32 geneste blokken. Arrays/collecties: 32 allocaties van maximaal 128 elementen. Strings: 127 tekens. Een uitvoering stopt na 1.000.000 stappen om eindeloze programma's te begrenzen. Druk tijdens een lopend programma op **Escape** om eerder af te breken; bij een invoervenster gebruik je Annuleren. De Pure C-build gebruikt een stack van 512 KiB.
+
+## 14. Projecten en bronbestanden beheren (0.5)
+
+### Een nieuw project starten
+
+1. Kies **Bestand → Nieuw project** of druk Ctrl+N.
+2. Geef een naam van één tot acht letters/cijfers, bijvoorbeeld `HELLO`.
+3. Bij gewijzigde bestanden kun je Opslaan, Verwerpen of Annuleren kiezen.
+4. De IDE maakt `C:\TTBASIC\PROJECTS\HELLO` met `HELLO.TBP` en een eigen `MAIN.BAS`.
+5. Het nieuwe project wordt geopend. Druk F5 voor het eerste Hello-programma.
+
+Een bestaande map met dezelfde projectnaam wordt niet overschreven. De beperking tot acht tekens past bij de TOS-bestandsnamen. Je kunt een projectmap later als geheel verplaatsen en het .TBP-bestand op de nieuwe locatie openen.
+
+### Een nieuw bestand toevoegen
+
+Kies **Bestand → Nieuw bestand** of F7. Geef bijvoorbeeld `MODEL` of `MODEL.BAS` op. De IDE maakt het bestand in de huidige projectmap, registreert het in het .TBP-bestand en opent het in de editor. Dubbele namen worden geweigerd. Het nieuwe bestand begint met een commentaarregel.
+
+Bestanden toevoegen organiseert het project; **Imports bepaalt welke modules deel van de uitvoering zijn**. Voor een klasse Model in MODEL.BAS zet je in MAIN.BAS:
+
+```vb
+Imports "MODEL.BAS"
+Dim item As New Model
+Print item.GetValue()
+End
+```
+
+MODEL.BAS kan bijvoorbeeld bevatten:
+
+```vb
+Class Model
+    Public Function GetValue() As Integer
+        Return 42
+    End Function
+End Class
+```
+
+### Een bestaand bestand toevoegen
+
+Kies **Bestand → Bestand toevoegen** of F8. Selecteer een .BAS-bestand in de GEM-bestandskiezer. Een bestand van buiten de projectmap wordt gekopieerd, zodat het project zelfstandig blijft. Het origineel blijft intact. Een bestand dat al in de map staat wordt alleen geregistreerd. Voeg eventuele afhankelijke bronbestanden ook toe; relatieve Imports worden vanuit de nieuwe bestandsmap opgelost. Een botsende bestandsnaam wordt niet overschreven. Ook hier gebruik je Imports om de code vanuit het startbestand te laden.
+
+### Opslaan en opnieuw openen
+
+- F2 slaat alleen het actieve bestand op.
+- **Bestand → Alles opslaan**, Ctrl+Shift+S, slaat alle gewijzigde geopende bestanden en de projectindeling op.
+- **Bestand → Project openen**, Ctrl+O, opent een .TBP-bestand via de bestandskiezer. Dit is een ander formaat dan het Pure C-buildproject TTBASIC.PRJ.
+- F3 herlaadt alleen het actieve bronbestand.
+- Bij een projectwisseling vraagt de IDE wat er met wijzigingen moet gebeuren.
+- Het laatst geopende project wordt bij de volgende start automatisch heropend. Is dat niet beschikbaar, dan wordt het DEFAULT-project geprobeerd.
+
+De projectboom toont de geregistreerde bestanden én gevonden Imports-afhankelijkheden. Klik op een naam om te wisselen. De pijltjes onderaan bladeren door de lijst. F5 gebruikt altijd het startbestand uit het actieve project en de werkversies van de geopende bestanden.
+
+### Het projectbestand
+
+Een .TBP is gewone tekst met een formaatversie, naam, startbestand en bronbestanden:
+
+```text
+TTBASIC_PROJECT 1
+NAME=HELLO
+ENTRY=MAIN.BAS
+FILE=MAIN.BAS
+FILE=MODEL.BAS
+```
+
+Paden binnen de projectmap worden relatief opgeslagen, zodat de hele map verplaatsbaar is. Het startbestand is ook een projectlid. Er kunnen maximaal zestien geregistreerde bestanden zijn. Bij het openen worden de geregistreerde bronbestanden gecontroleerd; een onleesbaar of ontbrekend bestand voorkomt dat het huidige project wordt vervangen.
+
+Projectwijzigingen worden meteen opgeslagen. `.PTM` is het tijdelijke manifest en `.PBK` de vorige projectindeling. Bronbestanden behouden hun eigen `.TMP` en `.BAK`. Voorbeelden worden in het geïnstalleerde DEFAULT-project geladen; je huidige project wordt daarbij eerst veilig verlaten.

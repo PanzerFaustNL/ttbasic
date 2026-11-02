@@ -20,3 +20,9 @@ for suite in test_objects test_language test_examples; do
         "$test_dir/$suite" "$test_dir/MAIN.BAS"
     fi
 done
+
+${CC:-cc} -x c -std=c89 -Wall -Wextra -Wno-deprecated-declarations \
+    $sanitizer_flags -I "$repo_root/src" \
+    "$repo_root/tests/test_project.c" "$repo_root/src/PROJECT.C" \
+    -o "$test_dir/test_project"
+"$test_dir/test_project" "$test_dir"
