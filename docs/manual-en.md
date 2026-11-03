@@ -306,7 +306,7 @@ Line numbers include blank lines and comments. The editor highlights the relevan
 | Numeric range | −1,000,000 to +1,000,000 |
 | Characters per output line | 79 |
 
-Not yet implemented: multidimensional arrays, generic collections, overloading, garbage collection, exception handling and the visual form designer. BASIC programs are not compiled to standalone PRG files. This is its own BASIC dialect rather than a complete VB implementation.
+Not yet implemented: multidimensional arrays, generic collections, overloading, garbage collection, exception handling. See section 18 for the form designer. BASIC programs are not compiled to standalone PRG files. This is its own BASIC dialect rather than a complete VB implementation.
 
 ## 10. Project source layout
 
@@ -562,7 +562,7 @@ This first version handles simple receivers such as `third.`, `Me.` and `MyBase.
 
 ## 16. Native GEM windows and events (0.7)
 
-Choose **Project → Load GEM example**, then F5, or open GEMDEMO.TBP. It creates a native GEM window containing a text field, checkbox, buttons and label. Controls are created in BASIC code; a visual form designer is not included yet.
+Choose **Project → Load GEM example**, then F5, or open GEMDEMO.TBP. It creates a native GEM window containing a text field, checkbox, buttons and label. Create controls in BASIC code or with the form designer in section 18.
 
 ```basic
 Dim form As New Window("My program", 320, 160)
@@ -621,3 +621,54 @@ Breakpoints also work inside Click/Change handlers: interact with the program wi
 Unhandled runtime errors pause before unwinding the stack, allowing local inspection. F5 or Escape then terminates the failed run. Editing and resuming a failed statement is not supported. Sources are read-only while paused. There is no Immediate window, conditional breakpoint or editing of running variables yet.
 
 Up to 64 breakpoints persist in C:\TTBASIC\STUDIO.BRK. They use physical file rows and do not automatically move when lines are inserted/deleted; review them after structural edits. Set them on executable statements: comments, class/method definitions and Imports are skipped.
+
+## 18. Visual form designer (0.8)
+
+### Getting started
+
+1. Choose **File → New form project** or press **Ctrl+Shift+D**.
+2. Enter a project name of one to eight characters. A separate project directory and MAIN.BAS are created.
+3. Choose Select, Button, Label, TextBox or CheckBox in the left toolbox. Click the white form to place a control.
+4. Drag a control to move it. Drag its bottom-right corner to resize it. The form also has a bottom-right sizing handle.
+5. Edit names, text, position, size and handlers in the right property panel. Clicking a value opens a prefilled field. Click Enabled, Visible or Checked to toggle them.
+6. **Apply** returns to BASIC; **F2/Ctrl+S** applies and saves. **Test/F5** applies and runs the project, without automatically saving it.
+7. Reopen with **Ctrl+D** or **Project → Form designer**, including after restarting the IDE.
+
+Open **C:\TTBASIC\DESIGN.TBP** for a complete example, then Ctrl+D. Its greeting and close handlers already work. Existing handwritten programs, including GEMDEMO, are not automatically converted: Ctrl+D offers to create a separate form project and preserves the original sources.
+
+### Controls
+
+| Action | Input |
+|---|---|
+| Select / move | Select tool; click or drag |
+| Resize | Drag bottom-right corner |
+| Move selection | Arrow keys, 8 pixels |
+| Resize selection | Shift+arrow, 8 pixels |
+| Pan a large form | Ctrl+arrow or the four left arrow buttons |
+| Delete control | Delete key or Delete button |
+| Undo / restore last design change | Ctrl+Z or Undo |
+| Open event code | F4 or Event code |
+| Apply and save | F2 or Ctrl+S |
+| Apply and test | F5 or Test |
+| Leave designer | Cancel or Escape; changed designs can be applied or discarded |
+| Help | F1 |
+
+Positions and sizes use client-area pixels. Dragging uses an eight-pixel grid; property fields accept exact values. Larger forms can be panned within the canvas. The canvas is a design representation; Test shows the actual GEM rendering.
+
+### Event code
+
+Select the first Button added to a blank form and press F4. The designer creates a missing Sub and places the caret in its body:
+
+```basic
+Sub Button1_Click(sender As Button)
+    Form1.Close()
+End Sub
+```
+
+Save with F2 and run with F5. The button now closes the form. TextBox uses Change; Button and CheckBox use Click. Select the form for Load, or choose the Closed field to edit the close handler. Labels have no events. An empty handler name removes the binding; F4 supplies a default name when needed.
+
+The design lives inside MAIN.BAS alongside BASIC code; no separate resource file is needed. The region between `Rem @TTFORM BEGIN 1` and `Rem @TTFORM END` belongs to the designer. **Keep handwritten event code outside this region.** Existing Subs and their bodies survive layout changes. Deleting or renaming a binding does not delete the old Sub. Handler names are independent of object names. Renaming updates generated declarations and bindings; update references in your own BASIC code yourself. Event Subs can call imported procedures or object methods.
+
+### Limits
+
+The initial designer manages one form in the project's entry source, with up to sixteen controls. Form sizes range from 120–600 pixels wide and 64–400 high; controls must fit inside it. Existing text limits and the 256-line source limit apply to generated layout plus handlers. Generation failures preserve the original source and allow you to revise the design. Review breakpoints after layout edits: they still use physical line numbers. Multiple selection, automatic refactoring of user code and importing arbitrary handwritten GUI layouts are not included yet.

@@ -1,4 +1,4 @@
-TT BASIC Studio 0.7
+TT BASIC Studio 0.8
 ===================
 
 NEDERLANDS
@@ -52,7 +52,7 @@ Escape stops a running program. Cancel stops an Input dialog.
 Pure C: absolute calls (-P), 512 KiB stack.
 One-dimensional arrays, 128 items; 32 array/collection allocations per run.
 Strings: 127 chars; GEM Input: 63 chars; execution limit: 1000000 steps.
-No standalone BASIC compiler or form designer yet.
+No standalone BASIC compiler yet.
 Built and tested in Hatari / Pure C; physical TT validation pending.
 
 PROJECTS / PROJECTEN / PROJEKTE (0.5)
@@ -81,4 +81,16 @@ Ctrl+I: Inspect variable / Variabele / Variable
 Escape: Stop
 Open GEMDEMO.TBP or DEBUG.TBP via File > Open project.
 Window, Button, Label, TextBox, CheckBox; AddHandler and RemoveHandler.
-A paused program is read-only. No form designer or standalone compiler yet.
+A paused program is read-only. No standalone compiler yet.
+
+FORM DESIGNER / FORMULIERONTWERPER / FORMULARENTWURF (0.8)
+Ctrl+Shift+D: New form project / Nieuw formulierproject / Neues Formular
+Ctrl+D: Open designer / Ontwerper openen / Entwurf oeffnen
+Toolbox: Button, Label, TextBox, CheckBox; click on form to place.
+Drag: move. Bottom-right corner: resize. Arrow keys: move 8 pixels.
+Shift+arrow: resize. Ctrl+arrow: pan. Delete: remove. Ctrl+Z: undo.
+F4: event code. F5: apply and test. F2 / Ctrl+S: apply and save.
+Open DESIGN.TBP for a complete editable example.
+Keep handwritten event code outside the marked @TTFORM layout region.
+Existing handlers are preserved; renaming objects does not refactor user code.
+One designer form per project, max 16 controls, source limit 256 lines.

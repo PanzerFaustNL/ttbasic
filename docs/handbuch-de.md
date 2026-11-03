@@ -306,7 +306,7 @@ Leere Zeilen und Kommentare zählen mit. Der Editor markiert die betroffene Zeil
 | Zahlenbereich | −1.000.000 bis +1.000.000 |
 | Zeichen pro Ausgabezeile | 79 |
 
-Noch nicht implementiert sind mehrdimensionale Arrays, generische Collections, Überladung, automatische Speicherbereinigung, Ausnahmebehandlung und der visuelle Formular-Designer. BASIC wird noch nicht in eigenständige PRG-Dateien übersetzt. Dies ist ein eigener BASIC-Dialekt, keine vollständige VB-Implementierung.
+Noch nicht implementiert sind mehrdimensionale Arrays, generische Collections, Überladung, automatische Speicherbereinigung, und Ausnahmebehandlung. Der Formularentwurf wird in Kapitel 18 beschrieben. BASIC wird noch nicht in eigenständige PRG-Dateien übersetzt. Dies ist ein eigener BASIC-Dialekt, keine vollständige VB-Implementierung.
 
 ## 10. Projektquellcode
 
@@ -562,7 +562,7 @@ Diese erste Version unterstuetzt einfache Empfaenger wie `third.`, `Me.` und `My
 
 ## 16. Eigene GEM-Fenster und Ereignisse (0.7)
 
-**Projekt → GEM-Beispiel laden**, danach F5, oder GEMDEMO.TBP oeffnen. Das Beispiel erzeugt ein echtes GEM-Fenster mit Textfeld, Checkbox, Schaltflaechen und Beschriftung. Die Elemente werden in BASIC erzeugt; ein visueller Formulardesigner fehlt noch.
+**Projekt → GEM-Beispiel laden**, danach F5, oder GEMDEMO.TBP oeffnen. Das Beispiel erzeugt ein echtes GEM-Fenster mit Textfeld, Checkbox, Schaltflaechen und Beschriftung. Elemente werden in BASIC oder mit dem Formularentwurf in Kapitel 18 erzeugt.
 
 ```basic
 Dim form As New Window("Mein Programm", 320, 160)
@@ -621,3 +621,54 @@ Haltepunkte funktionieren auch in Click-/Change-Handlern. Die entsprechende Akti
 Unbehandelte Laufzeitfehler pausieren vor dem Abbau des Aufrufstapels. Lokale Werte bleiben damit sichtbar. F5/Escape beendet anschliessend den fehlerhaften Lauf. Fehlerhafte Zeilen koennen noch nicht geaendert und fortgesetzt werden. Quellcode ist waehrend der Pause schreibgeschuetzt. Immediate-Fenster, bedingte Haltepunkte und das Aendern laufender Variablen fehlen noch.
 
 Maximal 64 Haltepunkte werden in C:\TTBASIC\STUDIO.BRK gespeichert. Sie verweisen auf physische Dateizeilen und verschieben sich bei Einfuegen/Loeschen noch nicht automatisch. Danach kontrollieren. Kommentare, Klassen-/Methodendefinitionen und Imports werden uebersprungen; ausfuehrbare Zeilen verwenden.
+
+## 18. Grafischer Formularentwurf (0.8)
+
+### Einstieg
+
+1. **Datei → Neues Formularprojekt** waehlen oder **Strg+Shift+D** druecken.
+2. Einen Projektnamen mit ein bis acht Zeichen eingeben. Eine eigene Projektmappe mit MAIN.BAS wird erstellt.
+3. Links Auswahl, Button, Label, TextBox oder CheckBox waehlen und in das weisse Formular klicken.
+4. Elemente durch Ziehen bewegen; die rechte untere Ecke aendert die Groesse. Auch das Formular besitzt dort einen Groessengriff.
+5. Rechts Namen, Text, Position, Groesse und Handler bearbeiten. Die aktuellen Werte sind vorausgefuellt. Aktiv, Sichtbar und Markiert werden durch Anklicken umgeschaltet.
+6. **Anwenden** kehrt zu BASIC zurueck; **F2/Strg+S** wendet an und speichert. **Testen/F5** wendet an und startet, speichert aber nicht automatisch.
+7. **Strg+D** oder **Projekt → Formular entwerfen** oeffnet den Entwurf erneut, auch nach einem Neustart.
+
+Das Beispiel **C:\TTBASIC\DESIGN.TBP** oeffnen und Strg+D druecken. Begruessungs- und Schliesscode sind bereits enthalten. Handgeschriebene Programme wie GEMDEMO werden nicht automatisch umgewandelt: Strg+D bietet ein eigenes Formularprojekt an und erhaelt den bisherigen Quellcode.
+
+### Bedienung
+
+| Aktion | Bedienung |
+|---|---|
+| Auswaehlen / bewegen | Auswahlwerkzeug; klicken oder ziehen |
+| Groesse aendern | Rechte untere Ecke ziehen |
+| Auswahl bewegen | Pfeiltasten, 8 Pixel |
+| Groesse der Auswahl | Shift+Pfeil, 8 Pixel |
+| Grosses Formular verschieben | Strg+Pfeil oder die vier linken Pfeilschaltflaechen |
+| Element loeschen | Delete oder Loeschen |
+| Letzte Entwurfsaenderung zurueck / wiederherstellen | Strg+Z oder Zurueck |
+| Ereigniscode oeffnen | F4 oder Ereignis |
+| Anwenden und speichern | F2 oder Strg+S |
+| Anwenden und testen | F5 oder Testen |
+| Entwurf verlassen | Abbrechen/Escape; geaenderte Entwuerfe anwenden oder verwerfen |
+| Hilfe | F1 |
+
+Position und Groesse sind Pixel im Arbeitsbereich des Formulars. Ziehen verwendet ein Acht-Pixel-Raster; Eigenschaften erlauben genaue Werte. Grosse Formulare lassen sich im Entwurfsbereich verschieben. Die Vorschau ist eine Entwurfsdarstellung; Testen zeigt die wirkliche GEM-Darstellung.
+
+### Ereigniscode
+
+Den ersten Button eines leeren Formulars markieren und F4 druecken. Eine fehlende Sub wird angelegt und der Cursor in ihren Rumpf gesetzt:
+
+```basic
+Sub Button1_Click(sender As Button)
+    Form1.Close()
+End Sub
+```
+
+Mit F2 speichern und F5 starten. Die Schaltflaeche schliesst nun das Formular. TextBox verwendet Change, Button und CheckBox Click. Das Formular selbst bietet Load; fuer den Schliess-Handler das Feld Closed waehlen. Labels haben keine Ereignisse. Ein leerer Handlername entfernt die Bindung; F4 erzeugt bei Bedarf einen Standardnamen.
+
+Der Entwurf steht mit dem BASIC-Code in MAIN.BAS; eine separate Ressourcendatei ist nicht erforderlich. Den Bereich zwischen `Rem @TTFORM BEGIN 1` und `Rem @TTFORM END` verwaltet der Designer. **Eigenen Ereigniscode ausserhalb dieses Bereichs schreiben.** Vorhandene Subs und ihre Inhalte bleiben bei Layoutaenderungen erhalten. Entfernte oder umbenannte Bindungen loeschen die alte Sub nicht. Handlernamen sind von Objektnamen unabhaengig. Eine Umbenennung aktualisiert erzeugte Deklarationen und Bindungen; Verweise im eigenen BASIC-Code selbst anpassen. Ereignis-Subs koennen importierte Prozeduren oder Objektmethoden aufrufen.
+
+### Grenzen
+
+Die erste Version verwaltet ein Formular in der Startdatei des Projekts mit maximal sechzehn Elementen. Breite 120–600, Hoehe 64–400 Pixel; alle Elemente muessen hineinpassen. Textgrenzen und maximal 256 Quellzeilen gelten auch fuer Layout und Handler. Bei Erzeugungsfehlern bleibt die Quelle erhalten; der Entwurf kann angepasst werden. Haltepunkte nach Layoutaenderungen kontrollieren: sie verwenden physische Zeilennummern. Mehrfachauswahl, automatische Refaktorierung eigenen Codes und das Einlesen beliebiger handgeschriebener GUI-Layouts fehlen noch.

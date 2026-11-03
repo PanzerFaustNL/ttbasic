@@ -63,7 +63,7 @@ void menus_init(int screen_w, int screen_h)
             ITEM(tr(T_M_NEW),ACT_NEW);
             ITEM(tr(T_M_PROJECT_OPEN),ACT_PROJECT_OPEN);
             ITEM("-----------------------------",0);
-            ITEM(tr(T_M_NEWFILE),ACT_NEWFILE);
+            ITEM(tr(T_M_NEWFILE),ACT_NEWFILE);ITEM(tr(T_M_FORM_NEW),ACT_FORM_NEW);
             ITEM(tr(T_M_ADDFILE),ACT_ADDFILE);
             ITEM("-----------------------------",0);
             ITEM(tr(T_M_SAVE),ACT_SAVE);
@@ -81,7 +81,7 @@ void menus_init(int screen_w, int screen_h)
             ITEM(tr(T_M_FIND), ACT_FIND);
             ITEM(tr(T_M_NEXT), ACT_NEXT);
         } else if (i == 3) {
-            ITEM(tr(T_M_RUN), ACT_RUN);
+            ITEM(tr(T_M_FORM_EDIT),ACT_FORM_EDIT);ITEM(tr(T_M_RUN), ACT_RUN);
             ITEM(tr(T_M_STEP),ACT_STEP);ITEM(tr(T_M_OVER),ACT_OVER);ITEM(tr(T_M_OUT),ACT_OUT);
             ITEM(tr(T_M_BREAKPOINT),ACT_BREAKPOINT);ITEM(tr(T_M_PAUSE),ACT_PAUSE);
             ITEM(tr(T_M_STOP),ACT_STOP);ITEM(tr(T_M_INSPECT),ACT_INSPECT);
@@ -171,12 +171,14 @@ int input_dialog(char *prompt, char *buffer, int capacity)
 {
     OBJECT dialog[6]; TEDINFO field;
     char input[64],pattern[64],label[64];
-    int x,y,w,h,selected;
-    memset(input,0,sizeof(input)); memset(pattern,'_',63); pattern[63]=0;
+    int x,y,w,h,selected,limit;
+    limit=capacity-1;if(limit>63)limit=63;if(limit<1)return 0;
+    memset(input,0,sizeof(input));strncpy(input,buffer,limit);
+    memset(pattern,'_',limit);pattern[limit]=0;
     strncpy(label,prompt,63); label[63]=0; memset(&field,0,sizeof(field));
     field.te_ptext=input; field.te_ptmplt=pattern; field.te_pvalid="X";
     field.te_font=IBM; field.te_just=TE_LEFT; field.te_color=0x1180;
-    field.te_thickness=-1; field.te_txtlen=64; field.te_tmplen=64;
+    field.te_thickness=-1; field.te_txtlen=limit+1; field.te_tmplen=limit+1;
     object(dialog,0,G_BOX,0,0,560,160); dialog[0].ob_state=OUTLINED;
     object(dialog,1,G_STRING,16,12,528,16); dialog[1].ob_spec.free_string=tr(T_INPUT_TITLE);
     object(dialog,2,G_STRING,16,44,528,16); dialog[2].ob_spec.free_string=label;
@@ -197,7 +199,7 @@ int input_dialog(char *prompt, char *buffer, int capacity)
 void menus_debug(int running,int paused)
 {
     int i,enabled;
-    for(i=1;i<=ACT_GEMDEMO;++i)if(items[i]){
+    for(i=1;i<=ACT_FORM_NEW;++i)if(items[i]){
         enabled=1;
         if(running)enabled=i==ACT_RUN || i==ACT_QUIT || i==ACT_STOP || i==ACT_PAUSE || i==ACT_TREE || i==ACT_OUTPUT || i==ACT_PROPS || i==ACT_BREAKPOINT || i==ACT_INSPECT || i==ACT_STEP || i==ACT_OVER || i==ACT_OUT;
         if(i==ACT_STOP || i==ACT_PAUSE)enabled=running;
@@ -206,4 +208,10 @@ void menus_debug(int running,int paused)
         if(!running && (i==ACT_UNDO || i==ACT_PASTE))continue;
         menu_ienable(menu,items[i],enabled);
     }
+}
+
+void menus_modal(int active)
+{
+    int i;if(!active){menus_debug(0,0);return;}
+    for(i=1;i<=ACT_FORM_NEW;++i)if(items[i])menu_ienable(menu,items[i],0);
 }

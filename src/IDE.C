@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.7 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.8 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -11,6 +11,7 @@
 #include "PROJECT.H"
 #include "COMPLETE.H"
 #include "GEMRUN.H"
+#include "DESIGN.H"
 #include <stdlib.h>
 #define DEFAULT_SOURCE "C:\\TTBASIC\\MAIN.BAS"
 
@@ -41,7 +42,7 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.7 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.8 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
@@ -109,7 +110,7 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.7 - %.8s / %.40s", current_project.name, document_name());
+    sprintf(title, "TT BASIC Studio 0.8 - %.8s / %.40s", current_project.name, document_name());
     wind_set(window, WF_NAME, title);
 }
 static void open_path(char *path);
@@ -716,10 +717,50 @@ static void add_file(void)
     build_tree();open_path(current_project.members[index-1]);
     tree_first=maximum(0,tree_count-tree_rows);save_settings();strcpy(status,tr(T_FILE_ADDED));
 }
+static void designer_host(int *message)
+{
+    if(message[3]!=window)return;
+    if(message[0]==WM_REDRAW)redraw(message[4],message[5],message[6],message[7]);
+}
+static void edit_form(int create)
+{
+    static FormModel model;
+    static char generated[MAX_LINES][LINE_LEN];
+    char previous_project[BASIC_PATH],handler[FORM_NAME],message[128];int found,result,count,line,new_form,i,different;
+    cache_current();new_form=create;
+    if(!create){
+        found=form_read(documents[0].text,documents[0].count,&model);
+        if(found<0){sprintf(message,tr(T_F_ERROR),form_last_error());form_alert(1,message);return;}
+        if(!found){if(form_alert(1,tr(T_F_NOTFORM))!=1)return;create=1;new_form=1;}
+    }
+    if(create){
+        strcpy(previous_project,current_project.file);new_project();
+        if(path_equal(previous_project,current_project.file))return;
+        form_default(&model);
+    }
+    cache_current();if(active_document)activate_document(0);completing=0;
+    while(1){
+        result=designer_edit(&model,vdi,window,document_name(),designer_host,handler);
+        if(!result){refresh();return;}
+        if(!form_generate(&model,source,new_form?0:lines,generated,&count)){
+            sprintf(message,tr(T_F_ERROR),form_last_error());form_alert(1,message);continue;
+        }
+        different=count!=lines;
+        for(i=0;!different && i<count;++i)if(strcmp(source[i],generated[i]))different=1;
+        if(different){remember();memcpy(source,generated,sizeof(source));lines=count;changed=1;scan_files();}
+        row=col=first=leftcol=error_line=0;
+        strcpy(status,tr(T_F_APPLIED));
+        if(result==DESIGN_CODE){line=form_handler_line(source,lines,handler);if(line>=0){row=minimum(lines-1,line+1);col=strlen(source[row]);}}
+        if(result==DESIGN_SAVE)save_source();
+        refresh();if(result==DESIGN_RUN){debug_mode=0;run_source();refresh();}return;
+    }
+}
 static void action(int command)
 {
     int i;
     switch (command) {
+    case ACT_FORM_EDIT:edit_form(0);break;
+    case ACT_FORM_NEW:edit_form(1);break;
     case ACT_NEW: new_project();break;
     case ACT_PROJECT_OPEN:
         {
@@ -835,6 +876,7 @@ static void edit(int key, int state)
     }
     if (state & 4) {
         switch (scan) {
+        case 32:action((state & 3)?ACT_FORM_NEW:ACT_FORM_EDIT);return;
         case 65:action(ACT_ADDFILE);return;
         case 31: action((state & 3)?ACT_SAVEALL:ACT_SAVE); return;
         case 24: action(ACT_PROJECT_OPEN); return;

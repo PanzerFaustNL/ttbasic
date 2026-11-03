@@ -37,6 +37,9 @@
 #define ACT_STOP 34
 #define ACT_INSPECT 35
 #define ACT_GEMDEMO 36
+#define ACT_FORM_EDIT 37
+#define ACT_FORM_NEW 38
+void menus_modal(int active);
 void menus_debug(int running,int paused);
 void menus_init(int screen_w, int screen_h);
 void menus_close(void);

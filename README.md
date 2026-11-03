@@ -1,6 +1,6 @@
 # TT BASIC Studio
 
-A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.7** adds native GEM windows and controls, BASIC event handlers, breakpoints, stepping and a variables/call-stack inspector. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
+A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.8** adds a native visual form designer: place, move and resize controls, edit properties, open event code, and save/test generated BASIC while preserving handwritten handlers. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
 
 ## Manuals
 
@@ -71,7 +71,7 @@ The suites cover project creation, manifest round trips, file copying, collision
 - Up to 16 classes/interfaces, 64 object instances and 64 methods/procedures.
 - BASIC is interpreted; the IDE itself is a native Atari PRG.
 
-Implemented: If/ElseIf/Else, While/Wend/End While, For/Step/Next, For Each, Do/Loop, Select Case, Exit/Continue, typed arrays, ReDim Preserve, ordered collections, string helpers and Input through a GEM dialog. Inherits, Implements, Overridable/Overrides, Protected, MyBase, TypeOf and typed object/interface parameters support polymorphism. Multidimensional arrays, generic collections, overloads, garbage collection, exception handling and a visual form designer remain future work. Imports loads source files rather than VB namespaces. This is a bounded VB-inspired dialect, not the complete VB language.
+Implemented: If/ElseIf/Else, While/Wend/End While, For/Step/Next, For Each, Do/Loop, Select Case, Exit/Continue, typed arrays, ReDim Preserve, ordered collections, string helpers and Input through a GEM dialog. Inherits, Implements, Overridable/Overrides, Protected, MyBase, TypeOf and typed object/interface parameters support polymorphism. Multidimensional arrays, generic collections, overloads, garbage collection, exception handling remain future work. Imports loads source files rather than VB namespaces. This is a bounded VB-inspired dialect, not the complete VB language.
 
 Validated in Hatari with TOS 3.06, TT Medium, 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT validation is pending.
 
@@ -93,3 +93,5 @@ Only project files belong here. ROM images, third-party compiler files, emulator
 GNU General Public License version 3; see [LICENSE](LICENSE).
 
 Try **Project → Load GEM example**, then F5, or open `GEMDEMO.TBP`. Open `DEBUG.TBP` for a small stepping example. F8 starts/steps into, Shift+F8 steps over, Ctrl+Shift+F8 steps out, F9 toggles a breakpoint, Ctrl+P requests pause, Ctrl+I inspects a variable, and Escape stops execution. GUI event handlers can be debugged. This is an initial debugger: no Immediate window, conditional breakpoints or edits while paused.
+
+Create a form project with **Ctrl+Shift+D** (File → New form project), or open `DESIGN.TBP` and press **Ctrl+D**. The designer has a toolbox, canvas, property editor, drag/resize, undo, F4 event code and F5 test. F2/Ctrl+S applies and saves. Up to 16 controls are supported in one entry-file form. Layout metadata and generated BASIC share a marked source region; handwritten handlers outside it are preserved. Handwritten GUI layouts are not imported automatically.

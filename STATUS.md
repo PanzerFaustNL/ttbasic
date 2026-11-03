@@ -1,16 +1,14 @@
-# TT BASIC 0.7 — status
+# TT BASIC 0.8 — status
 
-Eigen GEM-vensters en een eerste debugger zijn geïmplementeerd.
+De grafische formulierontwerper is geïmplementeerd.
 
-- Window, Button, Label, TextBox en CheckBox; eigenschappen, events en eventhandlers van eigen objecten.
-- Application.Run/Exit, AddHandler/RemoveHandler en opruimen na afloop of stoppen.
-- Breakpoints, stap-in/stap-over/stap-uit, aanroepstack en variabeleninspectie.
-- Inspectie bij runtimefouten, met behoud van de lopende stack.
-- Code completion voor GUI-objecten; GEMDEMO en DEBUG als voorbeeldprojecten.
-- Handleidingen in Nederlands, Engels en Duits.
+- Ctrl+Shift+D: nieuw formulierproject; Ctrl+D: formulier opnieuw openen.
+- Gereedschapskist, canvas en eigenschappenpaneel voor Button, Label, TextBox en CheckBox.
+- Slepen, formaat wijzigen, toetsenbordbediening, verschuiven van grote formulieren en ongedaan maken.
+- F4: eventcode openen/aanmaken. F2 of Ctrl+S: toepassen en opslaan. F5: toepassen en testen.
+- Layout en metadata in een herkenbaar BASIC-blok; bestaande eventcode daarbuiten blijft behouden.
+- DESIGN.BAS/.TBP als bewerkbaar voorbeeld; Nederlandse, Engelse en Duitse handleidingen bijgewerkt.
 
-F5: uitvoeren/doorgaan. F8: stap-in. Shift+F8: stap-over. Ctrl+Shift+F8: stap-uit. F9: breakpoint. Ctrl+P: pauze aanvragen. Ctrl+I: inspectie. Escape: stoppen. Bestand toevoegen is vanaf 0.7 Ctrl+F7.
+Alle bestaande hosttests plus 43 formulier-/generatiechecks slagen met geheugencontroles. De 40 kernchecks voor formulieren zijn ook met Pure C op de geëmuleerde TT uitgevoerd. Native GEM-interactie in Hatari bevestigt nieuw project, plaatsen, verplaatsen, formaat wijzigen, eigenschappen, eventcode, uitvoeren, opslaan, opnieuw openen en verwerpen. Bestaande gebruikersbestanden worden bij installatie behouden.
 
-Gecontroleerd met hosttests inclusief geheugencontroles, Pure C-interpretertests op een geëmuleerde TT en GEM-interactietests in Hatari. Bestaande gebruikersbestanden zijn bij installatie behouden.
-
-Dit is nog geen volledige Visual Basic-implementatie. Een visuele formulierontwerper, zelfstandig compileren, Immediate-venster en conditionele breakpoints ontbreken nog. Code en variabelen zijn tijdens een pauze alleen-lezen. Breakpoints schuiven nog niet automatisch mee bij regelwijzigingen. Fysieke TT-hardware is nog niet gevalideerd.
+Grenzen: één ontwerperformulier in het startbestand, maximaal 16 elementen, 256 regels inclusief handlers. Handgeschreven GUI-layouts worden niet automatisch geïmporteerd. Naamwijzigingen passen verwijzingen in eigen BASIC-code niet automatisch aan. Geen meervoudige selectie of zelfstandig compileren. Breakpoints gebruiken nog fysieke regelnummers. Fysieke TT-hardware is nog niet gevalideerd.

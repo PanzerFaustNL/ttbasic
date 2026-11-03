@@ -306,7 +306,7 @@ De regel is de fysieke regel in dat bestand, inclusief lege regels en commentaar
 | Numeriek bereik | −1.000.000 tot +1.000.000 |
 | Tekens per uitvoerregel | 79 |
 
-Nog niet aanwezig zijn multidimensionale arrays, generieke collecties, overloads, automatische geheugenopruiming, uitzonderingsafhandeling en de visuele formulierontwerper. De taal maakt nog geen zelfstandige PRG van je BASIC-programma. Dit is een eigen BASIC-dialect en geen volledige VB-implementatie.
+Nog niet aanwezig zijn multidimensionale arrays, generieke collecties, overloads, automatische geheugenopruiming en uitzonderingsafhandeling; zie hoofdstuk 18 voor de formulierontwerper. De taal maakt nog geen zelfstandige PRG van je BASIC-programma. Dit is een eigen BASIC-dialect en geen volledige VB-implementatie.
 
 ## 10. Eigen bestanden en broncode
 
@@ -562,7 +562,7 @@ Deze eerste versie ondersteunt eenvoudige ontvangers zoals `third.`, `Me.` en `M
 
 ## 16. Eigen GEM-vensters en events (0.7)
 
-Open **Project → GEM-voorbeeld laden** en druk op F5, of open GEMDEMO.TBP via Bestand → Project openen. Dit maakt een echt GEM-venster met een tekstveld, checkbox, knoppen en een label. De bedieningselementen worden in BASIC-code aangemaakt; er is nog geen visuele formulierontwerper.
+Open **Project → GEM-voorbeeld laden** en druk op F5, of open GEMDEMO.TBP via Bestand → Project openen. Dit maakt een echt GEM-venster met een tekstveld, checkbox, knoppen en een label. De bedieningselementen kun je in BASIC-code aanmaken of met de formulierontwerper uit hoofdstuk 18.
 
 ```basic
 Dim form As New Window("Mijn programma", 320, 160)
@@ -621,3 +621,54 @@ Je kunt ook een breakpoint binnen een Click- of Change-handler plaatsen. Het pro
 Onbehandelde runtimefouten pauzeren vóór het afwikkelen van de aanroepstack, zodat je lokale waarden kunt bekijken. F5 of Escape beëindigt daarna de mislukte uitvoering; een foutieve regel kan nog niet worden aangepast en hervat. Broncode is tijdens een pauze alleen-lezen. Er is geen Immediate-venster, conditioneel breakpoint of variabelen wijzigen tijdens uitvoering.
 
 Maximaal 64 breakpoints worden bewaard in C:\TTBASIC\STUDIO.BRK. Ze verwijzen naar fysieke bestandsregels en schuiven in deze versie niet automatisch mee wanneer je regels invoegt of verwijdert. Controleer ze na zulke wijzigingen. Plaats ze op uitvoerbare regels; commentaar, klasse-/methodedefinities en Imports worden overgeslagen.
+
+## 18. Grafische formulierontwerper (0.8)
+
+### Beginnen
+
+1. Kies **Bestand → Nieuw formulierproject** of druk **Ctrl+Shift+D**.
+2. Geef een projectnaam van één tot acht tekens. Er wordt een eigen projectmap met MAIN.BAS gemaakt.
+3. Links staat de gereedschapskist: Selecteren, Button, Label, TextBox en CheckBox. Kies een type en klik in het witte formulier om het te plaatsen.
+4. Sleep een element om het te verplaatsen. Sleep de hoek rechtsonder om de grootte te wijzigen. Ook het formulier zelf heeft rechtsonder een formaatgreep.
+5. Rechts wijzig je naam, tekst, positie, grootte en eventhandler. Klik op een waarde om die te bewerken; de huidige waarde staat al ingevuld. Actief, Zichtbaar en Aangevinkt wisselen met een klik.
+6. Kies **Toepassen** om naar BASIC terug te keren, of **F2/Ctrl+S** om meteen op te slaan. **Testen/F5** past het ontwerp toe en voert het project uit; hiermee sla je nog niet automatisch op.
+7. Met **Ctrl+D** of **Project → Formulier ontwerpen** open je het formulier opnieuw, ook na een herstart.
+
+Een bestaand voorbeeld staat in **C:\TTBASIC\DESIGN.TBP**. Open dat project en druk Ctrl+D. Het bevat al werkende begroetings- en sluitcode. Bestaande handgeschreven programma's, waaronder GEMDEMO, worden niet automatisch omgezet: Ctrl+D biedt daarvoor een nieuw formulierproject aan en behoudt de bestaande broncode.
+
+### Bediening
+
+| Actie | Bediening |
+|---|---|
+| Selecteren / verplaatsen | Gereedschap Selecteren; klik of sleep |
+| Vergroten / verkleinen | Hoek rechtsonder slepen |
+| Geselecteerd element verplaatsen | Pijltjestoetsen, 8 pixels |
+| Grootte wijzigen | Shift+pijltjestoetsen, 8 pixels |
+| Groot formulier bekijken | Ctrl+pijl of de vier pijltjes links |
+| Element verwijderen | Delete of Wissen |
+| Laatste ontwerpwijziging ongedaan / terugzetten | Ctrl+Z of Ongedaan |
+| Eventcode openen | F4 of Eventcode |
+| Toepassen en opslaan | F2 of Ctrl+S |
+| Toepassen en testen | F5 of Testen |
+| Ontwerper verlaten | Annuleren of Escape; bij wijzigingen kun je toepassen of verwerpen |
+| Hulp | F1 |
+
+Positie en grootte zijn pixels in het werkgebied van het formulier. Slepen gebruikt een raster van acht pixels; in eigenschappen kun je exacte waarden invullen. Een groter formulier kun je verschuiven binnen het ontwerpcanvas. De getekende bedieningselementen zijn een ontwerpweergave; Testen toont de echte GEM-weergave.
+
+### Eventcode schrijven
+
+Selecteer bijvoorbeeld de eerste geplaatste Button en druk F4. De ontwerper maakt een Sub als die nog niet bestaat en zet de cursor in de body:
+
+```basic
+Sub Button1_Click(sender As Button)
+    Form1.Close()
+End Sub
+```
+
+Sla de code op met F2 en voer uit met F5. Deze knop sluit nu het formulier. Voor TextBox wordt Change gebruikt, voor Button en CheckBox Click. Selecteer het lege formulier voor Load; kies het veld Closed om de sluit-handler te bewerken. Een Label heeft geen event. Een lege handlernaam verwijdert de binding; F4 maakt indien nodig weer een standaardnaam.
+
+Het formulier staat samen met de BASIC-code in MAIN.BAS; er is geen apart resourcebestand nodig. Het blok tussen `Rem @TTFORM BEGIN 1` en `Rem @TTFORM END` wordt door de ontwerper beheerd. **Schrijf eigen eventcode buiten dat blok.** Bij layoutwijzigingen blijven bestaande Subs en hun inhoud behouden. Verwijderde of hernoemde bindings verwijderen de oude Sub niet, zodat je code behouden blijft. De eventhandlernaam is los van de objectnaam instelbaar. Namen veranderen declaraties en bindings; verwijzingen in je eigen BASIC-code moet je zelf aanpassen. Vanuit een event-Sub kun je geïmporteerde procedures of objectmethoden aanroepen.
+
+### Grenzen
+
+De eerste ontwerper beheert één formulier in het startbestand van een project, met maximaal zestien bedieningselementen. Formaat: 120–600 pixels breed en 64–400 hoog; elementen moeten daarbinnen passen. De bestaande tekstlimieten en bronlimiet van 256 regels gelden ook voor gegenereerde code en handlers. Bij overschrijding blijft de oorspronkelijke bron intact en kun je het ontwerp aanpassen. Controleer breakpoints na layoutwijzigingen: die gebruiken nog fysieke regelnummers. Er is nog geen meervoudige selectie, automatische refactoring van eigen code of import van willekeurige handgeschreven GUI-layouts.
