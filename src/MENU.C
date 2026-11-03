@@ -90,7 +90,7 @@ void menus_init(int screen_w, int screen_h)
             ITEM(tr(T_M_DEMO), ACT_DEMO);
             ITEM(tr(T_M_FLOW), ACT_FLOW);
             ITEM(tr(T_M_POLY), ACT_POLY);
-            ITEM(tr(T_M_INPUT), ACT_INPUT);ITEM(tr(T_M_GEMDEMO),ACT_GEMDEMO);
+            ITEM(tr(T_M_INPUT), ACT_INPUT);ITEM(tr(T_M_GEMDEMO),ACT_GEMDEMO);ITEM(tr(T_M_DX7DEMO),ACT_DX7DEMO);
         } else if (i == 4) {
             ITEM(tr(T_M_TREE), ACT_TREE);
             ITEM(tr(T_M_PROPS), ACT_PROPS);
@@ -199,7 +199,7 @@ int input_dialog(char *prompt, char *buffer, int capacity)
 void menus_debug(int running,int paused)
 {
     int i,enabled;
-    for(i=1;i<=ACT_FORM_NEW;++i)if(items[i]){
+    for(i=1;i<=ACT_DX7DEMO;++i)if(items[i]){
         enabled=1;
         if(running)enabled=i==ACT_RUN || i==ACT_QUIT || i==ACT_STOP || i==ACT_PAUSE || i==ACT_TREE || i==ACT_OUTPUT || i==ACT_PROPS || i==ACT_BREAKPOINT || i==ACT_INSPECT || i==ACT_STEP || i==ACT_OVER || i==ACT_OUT;
         if(i==ACT_STOP || i==ACT_PAUSE)enabled=running;
@@ -213,5 +213,5 @@ void menus_debug(int running,int paused)
 void menus_modal(int active)
 {
     int i;if(!active){menus_debug(0,0);return;}
-    for(i=1;i<=ACT_FORM_NEW;++i)if(items[i])menu_ienable(menu,items[i],0);
+    for(i=1;i<=ACT_DX7DEMO;++i)if(items[i])menu_ienable(menu,items[i],0);
 }

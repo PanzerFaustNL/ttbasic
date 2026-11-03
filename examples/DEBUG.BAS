@@ -3,13 +3,13 @@ Rem Shift+F8 steps over; Ctrl+Shift+F8 steps out.
 Dim startValue As Integer = 6
 Dim calculator As New Calculator
 Dim result As Integer
-result = calculator.Double(startValue)
+result = calculator.DoubleValue(startValue)
 Print "Result: "; result
 End
 
 Class Calculator
     Private calls As Integer = 0
-    Public Function Double(value As Integer) As Integer
+    Public Function DoubleValue(value As Integer) As Integer
         Dim doubled As Integer
         Me.calls = Me.calls + 1
         doubled = value * 2

@@ -1,7 +1,7 @@
 /* ASCII translations for the original Atari system font. */
 #include "LANG.H"
 static int current_language;
-static char *labels[3][139] = {
+static char *labels[3][140] = {
 {
 " Bestand ",
 " Bewerken ",
@@ -67,7 +67,7 @@ static char *labels[3][139] = {
 "Regel geplakt",
 "Maximaal 256 regels",
 "Uitvoer gewist",
-"[1][TT BASIC Studio 0.8|Pure C / GEM / Atari TT|BASIC met structuren en objecten.|Formulierontwerper en debugger.][OK]",
+"[1][TT BASIC Studio 0.10|Pure C / GEM / Atari TT|BASIC met structuren en objecten.|Formulierontwerper en debugger.][OK]",
 "[1][F5 Uitvoeren / Verder|F8 Stap in / Shift+F8 Stap over|Ctrl+Shift+F8 Stap uit / F9 Breakpoint|^I Variabele / ^P Pauze|Esc Stop / Ctrl+Spatie Aanvullen][OK]",
 "[1][TT BASIC heeft minimaal|640 x 480 nodig.][OK]",
 "Zoeken in broncode",
@@ -141,7 +141,8 @@ static char *labels[3][139] = {
 "[1][Kies een gereedschap en klik op het formulier.|Sleep een element; rechtsonder: grootte.|Pijlen: verplaatsen; Shift+pijl: grootte.|Ctrl+pijl: schuiven; Ctrl+Z: ongedaan.|F4: eventcode; F5: testen; Ctrl+S: opslaan.][OK]",
 "Formulier toegepast | F2 Opslaan F5 Uitvoeren",
 "[1][Dit element heeft geen event.][OK]",
-"Ctrl+pijl of de pijltjes: formulier verschuiven"
+"Ctrl+pijl of de pijltjes: formulier verschuiven",
+"  DX7 MIDI-demo openen"
 },
 {
 " File ",
@@ -208,7 +209,7 @@ static char *labels[3][139] = {
 "Line pasted",
 "Maximum 256 lines",
 "Output cleared",
-"[1][TT BASIC Studio 0.8|Pure C / GEM / Atari TT|BASIC with control flow and OOP.|Form designer and debugger.][OK]",
+"[1][TT BASIC Studio 0.10|Pure C / GEM / Atari TT|BASIC with control flow and OOP.|Form designer and debugger.][OK]",
 "[1][F5 Run / Continue|F8 Into / Shift+F8 Over|Ctrl+Shift+F8 Out / F9 Breakpoint|^I Inspect / ^P Pause|Esc Stop / Ctrl+Space Complete][OK]",
 "[1][TT BASIC needs at least|640 x 480 resolution.][OK]",
 "Find in source",
@@ -282,7 +283,8 @@ static char *labels[3][139] = {
 "[1][Choose a tool and click on the form.|Drag a control; bottom-right: resize.|Arrows: move; Shift+arrow: resize.|Ctrl+arrow: pan; Ctrl+Z: undo.|F4: event code; F5: test; Ctrl+S: save.][OK]",
 "Form applied | F2 Save F5 Run",
 "[1][This control has no event.][OK]",
-"Ctrl+arrow or the arrow buttons: pan the form"
+"Ctrl+arrow or the arrow buttons: pan the form",
+"  Open DX7 MIDI demo"
 },
 {
 " Datei ",
@@ -349,7 +351,7 @@ static char *labels[3][139] = {
 "Zeile eingefuegt",
 "Maximal 256 Zeilen",
 "Ausgabe geleert",
-"[1][TT BASIC Studio 0.8|Pure C / GEM / Atari TT|BASIC mit Strukturen und OOP.|Formularentwurf und Debugger.][OK]",
+"[1][TT BASIC Studio 0.10|Pure C / GEM / Atari TT|BASIC mit Strukturen und OOP.|Formularentwurf und Debugger.][OK]",
 "[1][F5 Start / Weiter|F8 Einzel / Shift+F8 Prozedur|Strg+Shift+F8 Raus / F9 Haltepunkt|^I Variable / ^P Pause|Esc Stop / Strg+Leertaste Ergaenzen][OK]",
 "[1][TT BASIC benoetigt mindestens|640 x 480 Aufloesung.][OK]",
 "Im Quellcode suchen",
@@ -423,7 +425,8 @@ static char *labels[3][139] = {
 "[1][Werkzeug waehlen und Formular anklicken.|Element ziehen; unten rechts: Groesse.|Pfeile: bewegen; Shift+Pfeil: Groesse.|Strg+Pfeil: verschieben; Strg+Z: zurueck.|F4: Code; F5: testen; Strg+S: speichern.][OK]",
 "Formular angewandt | F2 Speichern F5 Start",
 "[1][Dieses Element hat kein Ereignis.][OK]",
-"Strg+Pfeil oder Pfeiltasten: Ansicht verschieben"
+"Strg+Pfeil oder Pfeiltasten: Ansicht verschieben",
+"  DX7 MIDI-Demo oeffnen"
 }
 };
 char *tr(int key) { return labels[current_language][key]; }

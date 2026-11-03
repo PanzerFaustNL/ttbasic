@@ -41,12 +41,12 @@ int main(int argc, char **argv) {
     ok("let a=6\nB=7\nprint A*B\nPRINT (100+20)/3\nEND\nPRINT 9", "42");
     assert(!strcmp(out[1],"40") && used==3);
     ok("PRINT 2+3*4\nPRINT -(2+3)*4\nPRINT 7/-2", "14");
-    assert(!strcmp(out[1],"-20") && !strcmp(out[2],"-3"));
+    assert(!strcmp(out[1],"-20") && !strcmp(out[2],"-3.5"));
     ok("REM test\nPRINT \"hello\"; 2; \"!\"\n' comment", "hello2!");
     bad("PRINT 1/0","Division by zero");
     bad("PRINT (2+3","Missing closing");bad("PRINT \"bad","Missing closing quote");
-    bad("PRINT 1000000*1000000","numeric range");bad("PRINT 1000000+1","numeric range");
-    bad("PRINT 9999999999999999999999999","exceeds 1000000");
+    ok("PRINT 1000000*1000000","1000000000000");ok("PRINT 1000000+1","1000001");
+    bad("PRINT 1e301","numeric range");
     bad("PRINT (((((((((((((((((1)))))))))))))))))","nested too deeply");
     ok("Dim Total As Integer = 42\nPrint Total", "42");
     ok("Dim x As String = \"hello\"\nPrint x", "hello");
@@ -69,9 +69,9 @@ int main(int argc, char **argv) {
     bad("Imports \"PLAIN.BAS\"\nDim p As New Plain(1)", "no constructor");
     bad("Imports \"PLAIN.BAS\"\nImports \"COUNTER.BAS\"\nDim p As New Plain\nDim q As Counter\nq=p", "Class does not match");
     ok("Imports \"PLAIN.BAS\"\nDim p As Plain\np=New Plain()\np=Nothing\nPRINT 42", "42");
-    file("MATH.BAS","Function Double(x As Integer) As Integer\nDim Local As Integer = x*2\nReturn Local\nEnd Function\nSub Say(n As Integer)\nPRINT n\nEnd Sub\n");
-    ok("Imports \"MATH.BAS\"\nCall Say(Double(21))", "42");
-    bad("Imports \"MATH.BAS\"\nPrint Double(1,2)", "Wrong number");
+    file("MATH.BAS","Function DoubleValue(x As Integer) As Integer\nDim Local As Integer = x*2\nReturn Local\nEnd Function\nSub Say(n As Integer)\nPRINT n\nEnd Sub\n");
+    ok("Imports \"MATH.BAS\"\nCall Say(DoubleValue(21))", "42");
+    bad("Imports \"MATH.BAS\"\nPrint DoubleValue(1,2)", "Wrong number");
     bad("PRINT Me.Value", "Me is only valid");bad("RETURN 2", "Return is only valid");
     file("LOOP.BAS","Function Recurse() As Integer\nReturn Recurse()\nEnd Function\n");
     bad("Imports \"LOOP.BAS\"\nPrint Recurse()", "call depth");

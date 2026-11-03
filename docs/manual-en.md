@@ -1,6 +1,6 @@
 # TT BASIC Studio 0.5 — English manual
 
-TT BASIC Studio combines a BASIC interpreter with a GEM development environment for the Atari TT. Both the IDE and your BASIC program run on the Atari itself. This version was built with Pure C and tested in Hatari with TOS 3.06, TT Medium (640 × 480, 16 colours), 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT hardware testing is still pending.
+TT BASIC Studio combines a BASIC interpreter with a GEM development environment for the Atari TT. Both the IDE and your BASIC program run on the Atari itself. This version was built with Pure C and tested in Hatari with TOS 3.05, TT Medium (640 × 480, 16 colours), 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT hardware testing is still pending.
 
 This is an early language implementation. This manual describes **currently implemented features**, not the complete Microsoft Visual Basic language. BASIC keywords and interpreter diagnostics remain English in every UI language.
 
@@ -100,9 +100,9 @@ Rem A comment
 Print total ' A trailing comment
 ```
 
-`Let` is optional. `Integer` and `Long` currently represent the same bounded numeric type: whole numbers from **−1,000,000 to +1,000,000**. This is an interpreter limit, not the original VB Integer width or C's entire 32-bit range.
+`Let` is optional. Since 0.10, `Integer` and `Long` are both signed 32-bit integers: **−2,147,483,648 to +2,147,483,647**. This dialect does not use VB's 16-bit Integer. `Single` and `Double` support fractional values with a decimal point. See chapter 20 for ranges, conversions and migration.
 
-Numeric variables begin at zero. For compatibility, undeclared A through Z can also be read as zero. Assignment to a previously unknown identifier creates a numeric variable. Reading other unknown names is an error; prefer explicit Dim declarations.
+Numeric variables begin at zero. For compatibility, undeclared A through Z can also be read as zero. Assignment to a previously unknown identifier creates a Variant variable. Reading other unknown names is an error; prefer explicit Dim declarations.
 
 Duplicate Dim declarations in one scope are rejected. Parameters and locally declared variables belong to the current method invocation. A local Dim can shadow a global variable. Assignment uses an existing global variable when no local variable with that name exists.
 
@@ -111,11 +111,13 @@ Duplicate Dim declarations in one scope are rejected. Parameters and locally dec
 | Operator | Meaning |
 | --- | --- |
 | `+`, `-` | Addition, subtraction and unary signs |
-| `*`, `/` | Multiplication and integer division |
+| `*`, `/` | Multiplication and floating-point division |
+| `\`, `Mod` | Integer division and remainder, requiring 32-bit whole operands |
+| `^` | Exponentiation |
 | `(...)` | Grouping |
 | `=`, `<>`, `<`, `>`, `<=`, `>=` | Numeric comparisons |
 
-Multiplication and division take precedence over addition and subtraction. `7 / 2` returns `3`; `7 / -2` returns `-3`. Comparisons return `-1` for true and `0` for false. Division by zero and results outside the numeric range produce errors.
+Precedence: parentheses, powers (right associative), unary signs, `*`/`/`, `\`, `Mod`, `+`/`-`. `7 / 2` returns `3.5`; `7 \ 2` returns `3`. Comparisons return `-1` for true and `0` for false. Division by zero, overflow and underflow produce errors.
 
 ```vb
 Print 2 + 3 * 4
@@ -283,7 +285,7 @@ Line numbers include blank lines and comments. The editor highlights the relevan
 | `Sub cannot be used as an expression` | Use a Function when a result is required |
 | `Unknown variable` | Declaration, spelling and scope |
 | `Division by zero` | Divisor must not be zero |
-| `Result exceeds numeric range` | Intermediate results must stay within ±1,000,000 |
+| `Result exceeds numeric range` | Intermediate results must stay within the numeric range; see chapter 20 |
 | `Maximum ...` / `exceeds ...` | Version limits below |
 
 ## 9. Limits and features not yet implemented
@@ -303,7 +305,7 @@ Line numbers include blank lines and comments. The editor highlights the relevan
 | Parameters per method/procedure | 8, typed |
 | Nested method calls | 8 |
 | Nested expressions | 16 |
-| Numeric range | −1,000,000 to +1,000,000 |
+| Numeric range | Integer/Long: −2,147,483,648 to +2,147,483,647; Double: see chapter 20 |
 | Characters per output line | 79 |
 
 Not yet implemented: multidimensional arrays, generic collections, overloading, garbage collection, exception handling. See section 18 for the form designer. BASIC programs are not compiled to standalone PRG files. This is its own BASIC dialect rather than a complete VB implementation.
@@ -421,7 +423,7 @@ Collections are ordered, untyped and indexed from 1. Add appends, Remove removes
 
 ### Strings and input
 
-String variables, parameters and results are supported. Available helpers are Len, CStr/Str, CInt/Val, Left, Right, Mid, UCase, LCase and Abs. Mid positions start at 1. CInt/Val require an entirely valid integer within the supported range. Mod returns an integer division remainder.
+String variables, parameters and results are supported. Available helpers are Len, CStr/Str, CInt/CLng/CDbl/CSng/Val, Left, Right, Mid, UCase, LCase and Abs. Mid positions start at 1. Val/CDbl accept complete decimal text, including exponents. CInt/CLng round to a 32-bit integer, with ties to even. Int rounds down; Fix truncates toward zero. Mod returns an integer division remainder.
 
 ```vb
 Dim name As String
@@ -483,6 +485,16 @@ This method belongs inside a class declaring Implements IShow. A class can direc
 ## 13. Reserved words and execution limits
 
 A central registry rejects implemented language keywords as declared names. It covers structural keywords, types, visibility, object keywords, logical operators, True/False/Nothing and Input. New is allowed only as a constructor name. Helpers such as Len and Count are contextual function names, not language keywords.
+
+
+```text
+IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS
+ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS
+IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN
+CALL LET PRINT INPUT REM IMPORTS INTEGER LONG SINGLE DOUBLE BOOLEAN STRING
+VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD
+REDIM PRESERVE TYPEOF ARRAY ADDHANDLER REMOVEHANDLER ADDRESSOF STOP
+```
 
 Additional 0.4 limits: 16 classes/interfaces total, 16 fields per class including inherited fields, 64 methods/procedures, 64 object instances, 64 variables per scope, eight parameters and 32 nested blocks. Arrays/collections allow 32 allocations of up to 128 elements; strings hold 127 characters. Execution stops after 1,000,000 steps to bound runaway programs. Press **Escape** while a program runs to cancel sooner; use Cancel in an input dialog. The Pure C build uses a 512 KiB stack.
 
@@ -612,7 +624,7 @@ Limits: four allocated windows, 64 GUI objects including windows, and 64 binding
 
 **F8 is reserved for debugging from 0.7. Add existing file moves to Ctrl+F7.** New file remains F7. F11/F12 are not required on original Atari keyboards.
 
-Open DEBUG.TBP for a small method-call example. Set a breakpoint on `result = calculator.Double(startValue)`. F5 runs to that line, F8 enters the method, Shift+F8 completes the call, and Ctrl+Shift+F8 runs until the caller continues. Breakpoints still apply while stepping. The yellow line marks the next statement. The BASIC `Stop` statement also requests a debugger pause.
+Open DEBUG.TBP for a small method-call example. Set a breakpoint on `result = calculator.DoubleValue(startValue)`. F5 runs to that line, F8 enters the method, Shift+F8 completes the call, and Ctrl+Shift+F8 runs until the caller continues. Breakpoints still apply while stepping. The yellow line marks the next statement. The BASIC `Stop` statement also requests a debugger pause.
 
 The right panel shows the call stack and variables. Use `<`/`>` to select a frame and navigate to its source line; frame 0 is the main program. The list includes parameters, locals, Me fields and globals. Up/Down or the bottom arrows scroll. Click a variable or press Ctrl+I for its displayed value and type. GUI values include their text. Arrays/collections show item counts; individual items and fields of other objects cannot be expanded yet. Inspection never invokes BASIC methods or changes variables.
 
@@ -672,3 +684,112 @@ The design lives inside MAIN.BAS alongside BASIC code; no separate resource file
 ### Limits
 
 The initial designer manages one form in the project's entry source, with up to sixteen controls. Form sizes range from 120–600 pixels wide and 64–400 high; controls must fit inside it. Existing text limits and the 256-line source limit apply to generated layout plus handlers. Generation failures preserve the original source and allow you to revise the design. Review breakpoints after layout edits: they still use physical line numbers. Multiple selection, automatic refactoring of user code and importing arbitrary handwritten GUI layouts are not included yet.
+
+## 19. MIDI and the Yamaha DX7 demo (0.9)
+
+Choose **Project → Open DX7 MIDI demo**, then F5, or open C:\TTBASIC\DX7DEMO.TBP. Every run starts in **dry-run mode**: hexadecimal messages appear in the output panel without being transmitted. Select channel 1–16 and internal voice 1–32. Select voice changes the program. Apply sound sends algorithm, feedback and the selected operator's level. Note 60 on/off controls a test note. Panic sends sustain-off plus 128 explicit Note Off messages on the last used channel and remains usable if an input field is invalid. Close exits.
+
+Check **Send MIDI OUT** to transmit. TX indicates bytes were handed to MIDI output, not acknowledgement by a synthesizer. Device detection and MIDI input are not implemented. Fields contain requested values, not settings read back from the DX7.
+
+### Connections
+
+On a physical TT, connect MIDI OUT to DX7 MIDI IN. Sound comes from the DX7. Match its receive channel. For parameter SysEx, follow the original Yamaha manual: System Information available and Memory Protect off. Select the voice before editing. Program selection changes the current sound and may discard unsaved edits; store them on the DX7 if needed.
+
+On macOS, Hatari uses a PortMidi output device. Attach a USB-MIDI interface before starting Hatari and select its output in the MIDI device settings. Restart Hatari to discover newly attached ports. The demo checkbox does not configure Hatari's port. Dry-run mode works without an interface or synth; development tests do not modify user Hatari settings.
+
+### BASIC API
+
+| Call | Meaning |
+|---|---|
+| Midi.EnableOutput(True/False) | Enable/disable transmission; each F5 starts disabled |
+| Midi.Enabled() | Boolean output state |
+| Midi.LastMessage() | Last message/status as String |
+| Midi.CheckRange(value, minimum, maximum) | Checked Integer; invalid values cause a runtime error |
+| Midi.NoteOn(channel, note, velocity) | Channel 1–16; note/velocity 0–127 |
+| Midi.NoteOff(channel, note[, velocity]) | Release note; default velocity 0 |
+| Midi.ProgramChange(channel, program) | Program 0–127 |
+| Midi.ControlChange(channel, controller, value) | Controller/value 0–127 |
+| Midi.PitchBend(channel, value) | 0–16383; centre 8192 |
+| Midi.SysEx(bytes) | Array of 2–128 bytes including F0/240 and F7/247 |
+| Midi.StopNotes(channel) | Release notes/sustain owned by this run |
+| Midi.Panic(channel) | Sustain off and all 128 explicit note-offs |
+
+```basic
+Midi.EnableOutput(False)
+Midi.NoteOn(1, 60, 96)
+Print Midi.LastMessage()
+Midi.NoteOff(1, 60)
+```
+
+The Note On displays `DRY: 90 3C 60`. SysEx requires F0/F7 framing and seven-bit payload data. Running status is not used. Long log messages are shortened, while transmission uses the entire validated packet.
+
+Owned notes and sustain are released on stop, completion, errors and disabling output. Debugger pauses also release them; continuing does not replay them. Velocity-zero Note On acts as Note Off. Tracking covers messages sent by this program, not notes played elsewhere.
+
+### DX7 class
+
+DX7.BAS exposes the seven-byte message construction in BASIC and reuses one array buffer across edits.
+
+```basic
+Imports "DX7.BAS"
+Dim synth As New DX7(1)
+synth.Program(1)
+synth.Algorithm(6)
+synth.Feedback(3)
+synth.OperatorLevel(1, 90)
+Print Midi.LastMessage()
+```
+
+This stays dry until EnableOutput(True). Voice and algorithm use 1–32 in the class, converted to wire values as needed. Feedback is 0–7, operator 1–6 and level 0–99. Changing channel or program releases owned notes first. Ctrl+D opens the demo in the form designer; handlers remain editable.
+
+The demo targets the original DX7. Its encoding follows Yamaha's MIDI Data Format, pp. 30–32 of the [DX7 manual](https://usa.yamaha.com/files/download/other_assets/9/333979/DX7E1.pdf): algorithm parameter 134, feedback 135, operator level `(6 - operator) * 21 + 16`. No patch banks, storage commands or bulk transfers are sent. Software/emulation tests are provided; validation on a physical DX7 is still pending.
+
+### Arturia DX7 V with MIDI Learn
+
+The demo starts with **Arturia CC18** checked. In DX7 V, assign Algorithm to channel 1, CC 18 using MIDI Learn; select the matching channel in the demo. **Apply sound** maps Algorithm 1–32 to CC values 0–127. Voice, feedback and operator level are disabled in this mode because their Arturia assignments have not been configured. Uncheck Arturia CC18 for original Yamaha SysEx control. MIDI output starts disabled. Configure the mapping in DX7 V yourself; the demo does not create it.
+
+## 20. Numbers and array fields (0.10)
+
+Single uses 32-bit floating-point precision (about 6–7 significant digits). Double uses the C runtime precision, at least 15 significant digits; Pure C uses extended precision internally. PRINT/CStr and the debugger display up to 15 significant digits. Floating-point values are approximate; compare calculated values using a tolerance such as `Abs(a - b) < 0.000001`. This is not exact decimal Currency arithmetic.
+
+The supported Double range is zero or a magnitude from 1e-300 through 1e300. Single supports zero or approximately 1.175494e-38 through 3.402823e38; subnormal values are rejected. Invalid numbers, overflow and underflow cause errors. Literals include `0.5`, `.25`, `1.` and `1.5e-3`. Commas separate arguments.
+
+```vb
+Dim price As Double = 12.5
+Dim total As Double = price * 1.21
+Print total
+Print 7 / 2
+Print 7 \ 2
+Print 2 ^ 3 ^ 2
+Print CInt(2.5)
+Print CInt(3.5)
+```
+
+Output: 15.125, 3.5, 3, 512, 2 and 4. Integer/Long variables, array indices/bounds, MIDI data and screen coordinates require whole numbers; fractions are never silently truncated. Use CInt/CLng (round), Fix (toward zero) or Int (down) explicitly. CDbl, CSng and Val convert numeric values or complete numeric strings. Input also accepts Single/Double and decimal text.
+
+Math helpers: Abs, Sgn, Sqr, Sin, Cos, Tan, Atn, Exp and Log. Angles are radians; Log is the natural logarithm. A negative square root, Log of zero/negative input, or a negative power base with a fractional exponent raises a domain error. For supports Single/Double counters and fractional Step; a step too small to change the counter at its precision raises an error.
+
+Array fields may be fixed or dynamic. Each object gets its own fixed array. Fixed field bounds must be available at load time: use numeric literals. Public access, private access through Me, inheritance and ReDim Preserve work:
+
+```vb
+Class Measurements
+    Public values(1 To 3) As Double
+    Private history() As Double
+    Public Sub New()
+        ReDim Me.history(2)
+        Me.history(1) = 0.5
+        ReDim Preserve Me.history(4)
+        Me.values(1) = Me.history(1)
+    End Sub
+End Class
+Dim sample As New Measurements
+sample.values(2) = sample.values(1) / 2
+Print sample.values(2)
+```
+
+### Migration from 0.9
+
+`/` now performs floating-point division. Use `\` where integer truncation is intended. Fractional assignments to Integer/Long require explicit conversion. Single and Double are now reserved type names: rename a method named Double to DoubleValue. Updated DEBUG.BAS and MIDI examples already account for this. Existing personal sources are not rewritten automatically.
+
+### Distribution status
+
+TT BASIC 0.10 is a bounded VB-inspired dialect. Documented constructs are tested; this is not the full VB language. Multidimensional arrays, BASIC file access, generic collections, overloads, garbage collection and exception handling remain unimplemented. Source/object/container limits still apply. Arrays have up to 128 elements, with indices bounded to ±1,000,000. Test your projects on their target computer; physical TT validation remains pending.

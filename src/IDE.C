@@ -1,4 +1,4 @@
-/* TT BASIC IDE 0.8 - Pure C / GEM / TT Medium. */
+/* TT BASIC IDE 0.10 - Pure C / GEM / TT Medium. */
 #include <aes.h>
 #include <vdi.h>
 #include <stdio.h>
@@ -12,6 +12,8 @@
 #include "COMPLETE.H"
 #include "GEMRUN.H"
 #include "DESIGN.H"
+#include "MIDI.H"
+#include "MIDIO.H"
 #include <stdlib.h>
 #define DEFAULT_SOURCE "C:\\TTBASIC\\MAIN.BAS"
 
@@ -42,7 +44,7 @@ static void action(int command);
 static char source[MAX_LINES][LINE_LEN];
 static char output[OUT_LINES][OUT_LEN];
 static char status[80] = "Gereed | F1 Help  F5 Uitvoeren";
-static char title[100] = "TT BASIC Studio 0.8 - MAIN.BAS";
+static char title[100] = "TT BASIC Studio 0.10 - MAIN.BAS";
 typedef struct {
     char path[BASIC_PATH], text[MAX_LINES][LINE_LEN];
     int count, dirty, row, col, first, left;
@@ -110,7 +112,7 @@ static void activate_document(int index)
     memcpy(source, d->text, sizeof(source)); lines = d->count;
     changed = d->dirty; row = d->row; col = d->col;
     first = d->first; leftcol = d->left; undo_ready = error_line = 0;
-    sprintf(title, "TT BASIC Studio 0.8 - %.8s / %.40s", current_project.name, document_name());
+    sprintf(title, "TT BASIC Studio 0.10 - %.8s / %.40s", current_project.name, document_name());
     wind_set(window, WF_NAME, title);
 }
 static void open_path(char *path);
@@ -494,6 +496,7 @@ static int debug_hook(char *path,int line,int depth,int reason)
     pause=reason!=BASIC_DEBUG_LINE || breakpoint_at(path,line)>=0 || debug_mode==1 || (debug_mode==2 && depth<=debug_depth) || (debug_mode==3 && depth<debug_depth);
     if(!pause)return 1;
     if(reason==BASIC_DEBUG_ERROR && !strcmp(basic_debug_error(),"Execution cancelled"))return 0;
+    midi_silence();
     debug_skip_stop=reason==BASIC_DEBUG_LINE;debug_reason=reason;debug_paused=1;debug_frame=depth;debug_first=0;
     strcpy(debug_path,path);debug_row=line;props=1;completing=0;
     wind_get(0,WF_TOP,&previous_top,&junk,&junk,&junk);
@@ -759,6 +762,7 @@ static void action(int command)
 {
     int i;
     switch (command) {
+    case ACT_DX7DEMO:if(confirm_switch())open_project("C:\\TTBASIC\\DX7DEMO.TBP");break;
     case ACT_FORM_EDIT:edit_form(0);break;
     case ACT_FORM_NEW:edit_form(1);break;
     case ACT_NEW: new_project();break;
@@ -969,7 +973,7 @@ int main(void)
     strcpy(documents[0].path,DEFAULT_SOURCE);documents[0].count=1;
     basic_set_reader(cached_file);
     basic_set_input(runtime_input); basic_set_poll(runtime_poll);
-    basic_set_debug(debug_hook);basic_set_gui(gemrun_request);gemrun_init(vdi,window,runtime_service);
+    basic_set_debug(debug_hook);midi_set_writer(tos_midi_write);basic_set_gui(gemrun_request);gemrun_init(vdi,window,runtime_service);
     if(!last_project[0] || !open_project(last_project)){
         char default_project[BASIC_PATH];
         strcpy(default_project,current_project.file);

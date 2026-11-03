@@ -1,14 +1,11 @@
-# TT BASIC 0.8 — status
+# TT BASIC 0.10
 
-De grafische formulierontwerper is geïmplementeerd.
+Ontwikkelversie voor testen en verspreiding als begrensd, op Visual Basic geïnspireerd dialect. Zie RELEASE.md voor installatie, migratie en ontbrekende functies.
 
-- Ctrl+Shift+D: nieuw formulierproject; Ctrl+D: formulier opnieuw openen.
-- Gereedschapskist, canvas en eigenschappenpaneel voor Button, Label, TextBox en CheckBox.
-- Slepen, formaat wijzigen, toetsenbordbediening, verschuiven van grote formulieren en ongedaan maken.
-- F4: eventcode openen/aanmaken. F2 of Ctrl+S: toepassen en opslaan. F5: toepassen en testen.
-- Layout en metadata in een herkenbaar BASIC-blok; bestaande eventcode daarbuiten blijft behouden.
-- DESIGN.BAS/.TBP als bewerkbaar voorbeeld; Nederlandse, Engelse en Duitse handleidingen bijgewerkt.
+Nieuw: Single/Double, decimale en wetenschappelijke notatie, 32-bit Integer/Long-aliases, gewone en gehele deling, machten, numerieke conversies en wiskundefuncties. Vaste en dynamische getypeerde arrayvelden werken rechtstreeks via objecten en Me, inclusief ReDim Preserve. Completion, debugger en handleidingen NL/EN/DE zijn bijgewerkt. NUMBERS.TBP demonstreert de taaluitbreiding.
 
-Alle bestaande hosttests plus 43 formulier-/generatiechecks slagen met geheugencontroles. De 40 kernchecks voor formulieren zijn ook met Pure C op de geëmuleerde TT uitgevoerd. Native GEM-interactie in Hatari bevestigt nieuw project, plaatsen, verplaatsen, formaat wijzigen, eigenschappen, eventcode, uitvoeren, opslaan, opnieuw openen en verwerpen. Bestaande gebruikersbestanden worden bij installatie behouden.
+Inclusief MIDI-uitvoer, droogtest, notenopruimen bij stoppen/fouten/pauzeren, een Yamaha DX7-klasse en formulierdemo. Arturia-modus bedient Algorithm via een vooraf ingestelde CC18 MIDI Learn-koppeling; andere Arturia-parameters zijn nog niet gekoppeld. Die algoritmekoppeling is door de gebruiker bevestigd.
 
-Grenzen: één ontwerperformulier in het startbestand, maximaal 16 elementen, 256 regels inclusief handlers. Handgeschreven GUI-layouts worden niet automatisch geïmporteerd. Naamwijzigingen passen verwijzingen in eigen BASIC-code niet automatisch aan. Geen meervoudige selectie of zelfstandig compileren. Breakpoints gebruiken nog fysieke regelnummers. Fysieke TT-hardware is nog niet gevalideerd.
+Validatie: alle hostregressies slagen met ASan/UBSan, inclusief 100 numerieke/arraycontroles, 41 MIDI/DX7-controles en zeven consolevoorbeelden. Pure C op de geëmuleerde TT: 100 numerieke/arraycontroles, 41 MIDI/DX7-controles en zeven voorbeelden geslaagd. De native IDE voert NUMBERS uit; de DX7-demo is in TT Medium getest met droogtest CC18. Eerdere UART-traces bevestigen Note Off bij pauzeren en stoppen. Fysieke TT/DX7-validatie staat open.
+
+Voor verspreiding: tools/package.py maakt een schoon pakket met PRG, voorbeelden, drie handleidingen, GPLv3-licentie en bijbehorende broncode. Geen persoonlijke projecten, TOS-ROM of Pure C-compiler/bibliotheekbestanden in het pakket. BASIC-bestandstoegang, exception handling, meerdimensionale arrays, generieke collecties, overloads, garbage collection en zelfstandige BASIC-compilatie ontbreken nog.

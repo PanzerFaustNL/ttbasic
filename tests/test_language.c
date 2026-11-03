@@ -96,7 +96,7 @@ int main(int argc,char **argv)
     bad("Dim If As Integer", "Reserved word");
     bad("Let While=1", "Reserved word");
     bad("Dim n As Integer=\"text\"", "requires number");
-    bad("Print CInt(\"abc\")", "Invalid integer text");
+    bad("Print CInt(\"abc\")", "Invalid numeric text");
     ok("Dim values(2) As Integer\nvalues(0)=40\nvalues(2)=2\nPrint values(0)+values(2)", "42");
     ok("Dim values(1 To 3) As Integer\nvalues(3)=42\nPrint values(3)\nPrint LBound(values)\nPrint UBound(values)", "42");
     assert(!strcmp(out[1],"1") && !strcmp(out[2],"3"));

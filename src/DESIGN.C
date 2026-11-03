@@ -257,7 +257,7 @@ int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost 
     int dx,dy,dw,dh,e,m[8],mx,my,mb,ks,key,clicks,scan,result;char title[100];
     work=initial=*model;device=vdi;selected=-1;tool=panx=pany=dirty=undo_ready=event_slot=0;handler[0]=0;
     wind_get(0,WF_WORKXYWH,&dx,&dy,&dw,&dh);window=wind_create(KIND,dx,dy,dw,dh);if(window<0)return 0;
-    sprintf(title,"TT BASIC 0.8 - %s - %.32s",tr(T_F_TITLE),filename);wind_set(window,WF_NAME,title);wind_open(window,dx,dy,dw,dh);
+    sprintf(title,"TT BASIC 0.10 - %s - %.32s",tr(T_F_TITLE),filename);wind_set(window,WF_NAME,title);wind_open(window,dx,dy,dw,dh);
     menus_modal(1);layout();refresh();result=-1;
     while(result<0){
         e=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON,1,1,1,0,0,0,0,0,0,0,0,0,0,m,0,0,&mx,&my,&mb,&ks,&key,&clicks);

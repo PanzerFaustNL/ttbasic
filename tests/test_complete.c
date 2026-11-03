@@ -53,5 +53,9 @@ int main(int argc,char **argv)
     build("Dim box As CheckBox\nbox.|");assert(has("Checked") && has("Click") && !has("Show"));
     build("Application.|");assert(has("Run") && has("Exit"));
     build("AddH|");assert(has("AddHandler"));
+    build("Midi.|");assert(has("NoteOn") && has("SysEx") && has("LastMessage"));
+    build("Dou|");assert(has("Double"));
+    build("CSn|");assert(has("CSng"));
+    build("Sq|");assert(has("Sqr"));
     remove(imported);puts("Completion checks passed: imports, members, inheritance, visibility, scope, signatures and incomplete code.");return 0;
 }

@@ -1,6 +1,6 @@
 # TT BASIC Studio
 
-A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.8** adds a native visual form designer: place, move and resize controls, edit properties, open event code, and save/test generated BASIC while preserving handwritten handlers. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
+A native GEM BASIC IDE for the Atari TT, written in Pure C. Version **0.10** adds Single/Double arithmetic, 32-bit Integer/Long values, numeric conversions, math functions and direct typed array fields. It also includes MIDI output, dry-run hexadecimal logging, owned-note cleanup and a Yamaha DX7 demo with an editable form and BASIC instrument class. The visual form designer supports placing, moving and resizing controls, properties and preserved event handlers. Project management includes New/Open project, New/Add source file, Save All and portable .TBP manifests. The language includes conditions, loops, Select Case, strings, arrays, collections, interactive input, source imports, inheritance, interfaces and polymorphic method calls. The IDE supports Dutch, English and German.
 
 ## Manuals
 
@@ -32,16 +32,17 @@ Load examples with **Project → Load language example**, **Load polymorphism ex
 
 ## Building on the Atari
 
-Prerequisites: Atari TT or a compatible Hatari setup, TOS 3.06 and a separate Pure C installation at `C:\PUREC`. Pure C, TOS and the emulator are not distributed in this repository.
+Prerequisites: Atari TT or a compatible Hatari setup, TOS 3.05 and a separate Pure C installation at `C:\PUREC`. Pure C, TOS and the emulator are not distributed in this repository.
 
 1. Copy `src/*.C`, `src/*.H`, `atari/TTBASIC.PRJ` and `atari/BUILD.LNK` into `C:\TTBASIC`.
 2. Copy the BASIC files from `examples/` into that directory. Preserve any existing user programs.
 3. Start `C:\PUREC\PC.PRG`.
 4. Select `C:\TTBASIC\TTBASIC.PRJ` as the project.
 5. Set the include directory to `C:\PUREC\INCLUDE` and the library directory to `C:\PUREC\LIB` if your Pure C configuration does not already use them.
-6. Use **Project → Make**. The result is `C:\TTBASIC\TTBASIC.PRG`.
+6. Keep `PCFLTLIB.LIB` before `PCSTDLIB.LIB` in the supplied project: this enables floating-point formatting as well as arithmetic.
+7. Use **Project → Make**. The result is `C:\TTBASIC\TTBASIC.PRG`.
 
-The project uses a 512 KiB stack and the compiler option `-P` for absolute calls. Keep `-P` enabled: the program is too large for 16-bit PC-relative inter-module calls. Numeric calculations use bounded C longs and do not require floating-point libraries. The source and Atari project files use CRLF line endings for the original compiler. Git's attributes preserve this on checkout.
+The project uses a 512 KiB stack and the compiler option `-P` for absolute calls. Keep `-P` enabled: the program is too large for 16-bit PC-relative inter-module calls. Numeric values use the C floating-point runtime; the supplied library order enables both math and decimal formatting. The source and Atari project files use CRLF line endings for the original compiler. Git's attributes preserve this on checkout.
 
 On a modern host you can prepare a GEMDOS drive directory with:
 
@@ -66,14 +67,24 @@ The suites cover project creation, manifest round trips, file copying, collision
 
 - Text editor with code completion, native menus, project/import tree, properties and resizable output panels.
 - Separate projects with a default MAIN.BAS entry point, editable source files and persistent .TBP manifests.
-- Integer and string BASIC, Boolean logic, procedures, functions, typed fields and object references.
+- Integer, floating-point and string BASIC, Boolean logic, procedures, functions, typed fields and object references.
 - Up to 16 files, 256 lines per file and 2048 loaded source lines.
 - Up to 16 classes/interfaces, 64 object instances and 64 methods/procedures.
 - BASIC is interpreted; the IDE itself is a native Atari PRG.
 
 Implemented: If/ElseIf/Else, While/Wend/End While, For/Step/Next, For Each, Do/Loop, Select Case, Exit/Continue, typed arrays, ReDim Preserve, ordered collections, string helpers and Input through a GEM dialog. Inherits, Implements, Overridable/Overrides, Protected, MyBase, TypeOf and typed object/interface parameters support polymorphism. Multidimensional arrays, generic collections, overloads, garbage collection, exception handling remain future work. Imports loads source files rather than VB namespaces. This is a bounded VB-inspired dialect, not the complete VB language.
 
-Validated in Hatari with TOS 3.06, TT Medium, 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT validation is pending.
+Validated in Hatari with TOS 3.05, TT Medium, 8 MiB ST-RAM and 256 MiB TT-RAM. Physical TT validation is pending.
+
+## Sharing a build
+
+See [release notes](RELEASE.md) for installation, migration and known limits. Create a binary/source/manual bundle after a native build:
+
+```sh
+python3 tools/package.py --program /path/to/TTBASIC.PRG --output dist/ttbasic-0.10.zip
+```
+
+The bundle contains the executable, clean examples, three manuals, license and corresponding source. It includes no personal projects, TOS ROM or Pure C compiler/libraries.
 
 ## Repository layout
 
@@ -95,3 +106,5 @@ GNU General Public License version 3; see [LICENSE](LICENSE).
 Try **Project → Load GEM example**, then F5, or open `GEMDEMO.TBP`. Open `DEBUG.TBP` for a small stepping example. F8 starts/steps into, Shift+F8 steps over, Ctrl+Shift+F8 steps out, F9 toggles a breakpoint, Ctrl+P requests pause, Ctrl+I inspects a variable, and Escape stops execution. GUI event handlers can be debugged. This is an initial debugger: no Immediate window, conditional breakpoints or edits while paused.
 
 Create a form project with **Ctrl+Shift+D** (File → New form project), or open `DESIGN.TBP` and press **Ctrl+D**. The designer has a toolbox, canvas, property editor, drag/resize, undo, F4 event code and F5 test. F2/Ctrl+S applies and saves. Up to 16 controls are supported in one entry-file form. Layout metadata and generated BASIC share a marked source region; handwritten handlers outside it are preserved. Handwritten GUI layouts are not imported automatically.
+
+Choose **Project → Open DX7 MIDI demo**, then F5, or open `DX7DEMO.TBP`. It starts with output disabled. The `DX7.BAS` class exposes Yamaha parameter messages; `Midi` provides reusable MIDI 1.0 calls. Select an actual MIDI output in Hatari before enabling transmission, or use the TT MIDI OUT port. No incoming MIDI, bank transfers or automatic connection detection are included. Tests cover the messages and cleanup; physical DX7 validation is pending. See the manuals for channel/parameter ranges and original DX7 settings.

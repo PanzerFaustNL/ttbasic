@@ -1,4 +1,4 @@
-TT BASIC Studio 0.8
+TT BASIC Studio 0.10
 ===================
 
 NEDERLANDS
@@ -94,3 +94,29 @@ Open DESIGN.TBP for a complete editable example.
 Keep handwritten event code outside the marked @TTFORM layout region.
 Existing handlers are preserved; renaming objects does not refactor user code.
 One designer form per project, max 16 controls, source limit 256 lines.
+
+MIDI / DX7 (0.9)
+Project > DX7 MIDI-demo openen / Open DX7 MIDI demo.
+Or File > Open project: C:\TTBASIC\DX7DEMO.TBP, then F5.
+Starts in DRY RUN. Send MIDI OUT enables actual transmission.
+Physical TT: MIDI OUT -> DX7 MIDI IN; audio comes from the DX7.
+Mac/Hatari: select the USB-MIDI PortMidi output before enabling.
+Original DX7: matching channel; System Information available;
+Memory Protect off for parameter SysEx (see Yamaha manual).
+Demo: internal voice 1-32, algorithm 1-32, feedback 0-7,
+operator 1-6, output level 0-99, test note 60, note off and Panic.
+DX7.BAS contains the reusable BASIC class and SysEx encoding.
+Own notes are released on stop/end/error and debugger pause.
+No MIDI input, patch-bank transfers or stored-patch writes.
+No connection detection; physical DX7 testing still pending.
+
+LANGUAGE / TAAL / SPRACHE (0.10)
+Single/Double, decimal literals and scientific notation are supported.
+Integer/Long are signed 32-bit aliases. Use / for real division and \ for
+integer division. Fractions require explicit conversion for integer targets.
+CInt/CLng round ties to even; Fix truncates, Int rounds down.
+Math: ^, Abs, Sgn, Sqr, Sin, Cos, Tan, Atn, Exp, Log (radians).
+Typed array fields and ReDim Preserve Me.field(...) are supported.
+Single and Double are reserved type names; rename methods named Double.
+See chapter 20 of the NL/EN/DE manuals for examples and migration.
+This is a bounded VB-inspired dialect; see README for remaining limits.

@@ -1,10 +1,19 @@
-/* TT BASIC 0.4 - ANSI C interpreter for Pure C / Atari TT. */
+/* TT BASIC 0.10 - ANSI C interpreter for Pure C / Atari TT. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
+#include <math.h>
 #include "BASIC.H"
+#include "MIDI.H"
 #define LIMIT 1000000L
+#define REAL_MAX 1e300
+#define REAL_MIN 1e-300
+#define SINGLE_MAXIMUM 3.40282346638528859812e38
+#define SINGLE_MINIMUM 1.17549435082228750797e-38
+#define INT_MAXIMUM 2147483647.0
+#define INT_MINIMUM (-2147483647.0 - 1.0)
 #define PROGRAM_LINES 2048
 #define NAME_LEN 24
 #define CLASSES 16
@@ -33,6 +42,8 @@
 #define GUI_VALUE 5
 #define T_WINDOW -8
 #define T_CHECKBOX -12
+#define T_DOUBLE -13
+#define T_SINGLE -14
 #define HANDLERS 64
 #define ARRAY_TYPE 110
 #define B_IF 1
@@ -43,9 +54,9 @@
 
 typedef struct { char text[LINE_LEN]; int file, row; } Code;
 typedef struct { char path[BASIC_PATH]; int state, origin; } Module;
-typedef struct { int kind, object, view; long number; char string[STRING_LEN]; } Value;
+typedef struct { int kind, object, view; double number; char string[STRING_LEN]; } Value;
 typedef struct { char name[NAME_LEN]; int type, declaration; Value value; } Symbol;
-typedef struct { char name[NAME_LEN]; int visible, owner, type; Value initial; } Field;
+typedef struct { char name[NAME_LEN]; int visible, owner, type, fixed_array; long lower, upper; Value initial; } Field;
 typedef struct {
     char name[NAME_LEN], base_name[NAME_LEN], contracts[4][NAME_LEN];
     int base, is_interface, contract_count, fields, declaration, resolved;
@@ -88,7 +99,7 @@ typedef struct { int id, event, method, self; } Handler;
 static GuiObject gui_objects[GUI_LIMIT];
 static Handler handlers[HANDLERS];
 static int ngui, nhandlers, application_running, application_exit;
-static char gui_error[80];
+static char gui_error[80],midi_error[80];
 static int debug_line(int line);
 static void gui_store(Value *target, Value value);
 static Value expression(void);
@@ -98,6 +109,8 @@ static void run_range(int start, int end);
 static void simple(char *text);
 static void initialize(int type, int object, Value *args, int argc, int caller);
 static int check_type(int type, Value value);
+static void bounds(long *lower, long *upper, int *dynamic);
+static Value make_container(int kind, int element_type, long lower, long upper);
 static int method_index(int owner, char *name);
 static int class_index(char *name);
 void basic_set_reader(BasicReader reader) { file_reader = reader; }
@@ -105,9 +118,13 @@ void basic_set_input(BasicInput reader) { input_reader = reader; }
 void basic_set_poll(BasicPoll reader) { poll_reader = reader; }
 void basic_set_gui(BasicGui reader) { gui_reader=reader; }
 void basic_set_debug(BasicDebug reader) { debug_reader=reader; }
-static Value number(long n)
+static void fail(char *message);
+static Value number(double n)
 {
-    Value v; memset(&v, 0, sizeof(v)); v.kind = NUMBER; v.number = n;
+    Value v;
+    if (n != n || n > REAL_MAX || n < -REAL_MAX) { fail("Result exceeds numeric range"); n=0; }
+    else if (n && n < REAL_MIN && n > -REAL_MIN) { fail("Numeric underflow"); n=0; }
+    memset(&v, 0, sizeof(v)); v.kind = NUMBER; v.number = n;
     v.object = v.view = -1; return v;
 }
 static void fail(char *message)
@@ -141,7 +158,7 @@ static int word(char *s)
 }
 int basic_is_reserved(char *name)
 {
-    static char words[] = "IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN CALL LET PRINT INPUT REM INTEGER LONG BOOLEAN STRING VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD REDIM PRESERVE TYPEOF ARRAY ADDHANDLER REMOVEHANDLER ADDRESSOF STOP";
+    static char words[] = "IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN CALL LET PRINT INPUT REM IMPORTS INTEGER LONG SINGLE DOUBLE BOOLEAN STRING VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD REDIM PRESERVE TYPEOF ARRAY ADDHANDLER REMOVEHANDLER ADDRESSOF STOP";
     char *p; int i;
     for (p = words; *p; ) {
         for (i = 0; p[i] && p[i] != ' '; ++i) { }
@@ -182,10 +199,54 @@ static void emit(char *text)
     if (*sink_used == OUT_LINES) { memmove(sink[0], sink[1], (OUT_LINES - 1) * OUT_LEN); --*sink_used; }
     strncpy(sink[*sink_used], text, OUT_LEN - 1); sink[*sink_used][OUT_LEN - 1] = 0; ++*sink_used;
 }
-static long numeric(Value value)
+static double numeric(Value value)
 {
     if (value.kind != NUMBER) { fail("Expected numeric expression"); return 0; }
     return value.number;
+}
+/* Integer-only APIs must reject fractional values before any C cast. */
+static long integral(Value value)
+{
+    double n; long whole;
+    n=numeric(value); if(problem)return 0;
+    if(n<INT_MINIMUM || n>INT_MAXIMUM){fail("Integer exceeds 32-bit range");return 0;}
+    /* Pure C software conversion mishandles the signed minimum. */
+    if(n==INT_MINIMUM)return -2147483647L-1L;
+    whole=(long)n;
+    if(n!=(double)whole){fail("Expected whole number; use CInt, CLng or Fix");return 0;}
+    return whole;
+}
+static int number_text(char **cursor,double *result)
+{
+    char *p,*start,*end;int digits;
+    p=start=*cursor;digits=0;
+    while(isdigit((unsigned char)*p)){++digits;++p;}
+    if(*p=='.'){++p;while(isdigit((unsigned char)*p)){++digits;++p;}}
+    if(!digits)return 0;
+    if(*p=='e' || *p=='E'){
+        ++p;if(*p=='+' || *p=='-')++p;
+        if(!isdigit((unsigned char)*p))return 0;
+        while(isdigit((unsigned char)*p))++p;
+    }
+    errno=0;*result=strtod(start,&end);
+    if(end!=p || errno==ERANGE || *result!=*result || *result>REAL_MAX ||
+       (*result && *result<REAL_MIN))return 0;
+    *cursor=p;return 1;
+}
+static Value number_literal(void)
+{
+    double n;
+    if(!number_text(&scan,&n)){fail("Invalid number or numeric range exceeded");return number(0);}
+    return number(n);
+}
+static int parse_number(char *text,double *result)
+{
+    char *p;int negative;
+    p=text;while(*p==' ' || *p=='\t')++p;
+    negative=0;if(*p=='+' || *p=='-')negative=*p++=='-';
+    if(!number_text(&p,result))return 0;
+    while(*p==' ' || *p=='\t')++p;if(*p)return 0;
+    if(negative)*result=-*result;return 1;
 }
 static Value string_value(char *text)
 {
@@ -384,6 +445,8 @@ static int type_name(void)
     char name[NAME_LEN]; int type;
     if (!ident(name)) return T_NUMBER;
     if (!strcmp(name, "INTEGER") || !strcmp(name, "LONG")) return T_NUMBER;
+    if (!strcmp(name, "DOUBLE")) return T_DOUBLE;
+    if (!strcmp(name, "SINGLE")) return T_SINGLE;
     if (!strcmp(name, "STRING")) return T_STRING;
     if (!strcmp(name, "BOOLEAN")) return T_BOOLEAN;
     if (!strcmp(name, "VARIANT")) return T_ANY;
@@ -405,8 +468,12 @@ static int check_type(int type, Value v)
     }
     if (type == T_STRING) { if (v.kind == STRING) return 1; fail("Expected String value"); return 0; }
     if (type == T_COLLECTION) { if (v.kind == COLLECTION || (v.kind == REFERENCE && v.object < 0)) return 1; fail("Expected Collection value"); return 0; }
-    if (type == T_NUMBER || type == T_BOOLEAN) {
-        if (v.kind == NUMBER) return 1; fail("Numeric variable/field requires number"); return 0;
+    if (type == T_NUMBER || type == T_BOOLEAN || type == T_DOUBLE || type == T_SINGLE) {
+        if(v.kind!=NUMBER){fail("Numeric variable/field requires number");return 0;}
+        if(type==T_NUMBER){integral(v);return !problem;}
+        if(type==T_SINGLE && (v.number>SINGLE_MAXIMUM || v.number< -SINGLE_MAXIMUM ||
+           (v.number && v.number<SINGLE_MINIMUM && v.number> -SINGLE_MINIMUM))){fail("Single numeric range exceeded");return 0;}
+        return 1;
     }
     if(type<=T_WINDOW && type>=T_CHECKBOX){
         if((v.kind==GUI_VALUE && v.view==type) || (v.kind==REFERENCE && v.object<0))return 1;
@@ -421,7 +488,15 @@ static int check_type(int type, Value v)
 }
 static int put(Value *target, int type, Value v)
 {
+    double mantissa,whole,fraction;int exponent;
     if (!check_type(type, v)) return 0;
+    /* Quantize explicitly: Pure C float storage may retain extended precision. */
+    if(type==T_SINGLE && v.number){
+        mantissa=frexp(v.number<0?-v.number:v.number,&exponent)*16777216.0;
+        whole=floor(mantissa);fraction=mantissa-whole;
+        if(fraction>0.5 || (fraction==0.5 && fmod(whole,2)!=0))whole+=1;
+        mantissa=ldexp(whole,exponent-24);v.number=v.number<0?-mantissa:mantissa;
+    }
     if (type == T_BOOLEAN) v.number = v.number ? -1 : 0;
     if (type == T_COLLECTION && v.kind == REFERENCE) v.kind = COLLECTION;
     if (v.kind == REFERENCE) v.view = type >= 0 ? type : -1;
@@ -525,23 +600,19 @@ static void method_signature(int owner, int visible, int virt, int override, int
 }
 static Value constant(void)
 {
-    Value v; long n; int sign;
-    v = number(0); space();
-    if (*scan == '"') return string_literal();
-    if (word("TRUE")) return number(-1);
-    if (word("FALSE")) return v;
-    if (word("NOTHING")) { v.kind = REFERENCE; return v; }
-    sign = 1; if (*scan == '-' || *scan == '+') if (*scan++ == '-') sign = -1;
-    space(); if (!isdigit((unsigned char)*scan)) { fail("Field default must be a literal"); return v; }
-    n = 0;
-    while (isdigit((unsigned char)*scan)) {
-        n = n * 10 + (*scan++ - '0'); if (n > LIMIT) { fail("Number exceeds 1000000"); return v; }
-    }
-    return number(n * sign);
+    Value v; int negative;
+    v=number(0);space();
+    if(*scan=='"')return string_literal();
+    if(word("TRUE"))return number(-1);
+    if(word("FALSE"))return v;
+    if(word("NOTHING")){v.kind=REFERENCE;return v;}
+    negative=0;if(*scan=='+' || *scan=='-')negative=*scan++=='-';space();
+    if(!isdigit((unsigned char)*scan) && *scan!='.'){fail("Field default must be a literal");return v;}
+    v=number_literal();if(negative)v.number=-v.number;return v;
 }
 static void definitions(void)
 {
-    int owner, class_start, visible, virt, override, function, i, ending;
+    int owner, class_start, visible, virt, override, function, i, ending, array, dynamic; long lower,upper;
     char name[NAME_LEN]; Field *f;
     class_headers(); owner = class_start = -1;
     for (pc = 0; pc < ncode && !problem; ++pc) {
@@ -580,11 +651,16 @@ static void definitions(void)
         if (owner >= 0) {
             if (classes[owner].is_interface) { fail("Interface contains method signatures only"); break; }
             word("DIM"); if (!declaration_name(name, 0)) break;
+            array=dynamic=0;lower=0;upper=-1;space();
+            if(*scan=='('){array=1;bounds(&lower,&upper,&dynamic);}
             if (!word("AS")) { fail("Expected field As type"); break; }
             if (field_index(owner, name) >= 0 || own_method(owner, name) >= 0) { fail("Duplicate member name"); break; }
             if (classes[owner].fields == FIELDS) { fail("Maximum 16 fields per Class"); break; }
             f = &classes[owner].field[classes[owner].fields++];
-            strcpy(f->name, name); f->type = type_name(); f->visible = visible; f->owner = owner;
+            memset(f,0,sizeof(*f));strcpy(f->name,name);f->type=type_name();
+            if(array)f->type+=ARRAY_TYPE;
+            f->visible=visible;f->owner=owner;f->fixed_array=array && !dynamic;f->lower=lower;f->upper=upper;
+            if(f->fixed_array && (lower< -LIMIT || upper>LIMIT || upper<lower-1 || upper-lower+1>ITEMS))fail("Container bounds exceed 128 items");
             f->initial = default_value(f->type); space();
             if (*scan == '=') { ++scan; { Value initial; initial=constant(); put(&f->initial,f->type,initial); } }
             endline();
@@ -688,7 +764,7 @@ static Symbol *lookup(char *name, int create)
     if (basic_is_reserved(name)) { fail("Reserved word cannot be assigned"); return 0; }
     if (frames[level].count == SYMBOLS) { fail("Maximum 64 variables per scope"); return 0; }
     s = &frames[level].vars[frames[level].count++]; strcpy(s->name, name);
-    s->type = T_NUMBER; s->declaration = -1; s->value = number(0); return s;
+    s->type = T_ANY; s->declaration = -1; s->value = number(0); return s;
 }
 static Symbol *declare(char *name)
 {
@@ -752,7 +828,10 @@ static Value construct(int type, Value *args, int argc)
     if (classes[type].is_interface) { fail("Cannot instantiate an Interface"); return v; }
     if (nobjects == OBJECTS) { fail("Maximum 64 object instances per run"); return v; }
     v.kind = REFERENCE; v.object = nobjects++; v.view = type; objects[v.object].type = type;
-    for (i = 0; i < classes[type].fields; ++i) objects[v.object].field[i] = classes[type].field[i].initial;
+    for(i=0;i<classes[type].fields && !problem;++i){
+        Field *f;f=&classes[type].field[i];
+        objects[v.object].field[i]=f->fixed_array?make_container(ARRAY,f->type-ARRAY_TYPE,f->lower,f->upper):f->initial;
+    }
     initialize(type, v.object, args, argc, accessor()); return v;
 }
 static int comparison(Value a, Value b, char op, char next)
@@ -771,42 +850,62 @@ static int comparison(Value a, Value b, char op, char next)
 static void format_value(Value v, char *text)
 {
     if (v.kind == STRING) strcpy(text, v.string);
-    else if (v.kind == NUMBER) sprintf(text, "%ld", v.number);
+    else if (v.kind == NUMBER) sprintf(text, "%.15g", v.number);
     else fail("Cannot print/convert an object or container");
-}
-static int parse_integer(char *text, long *result)
-{
-    char *p; long n; int sign;
-    p = text; while (*p == ' ' || *p == '\t') ++p;
-    sign = 1; if (*p == '-' || *p == '+') if (*p++ == '-') sign = -1;
-    if (!isdigit((unsigned char)*p)) return 0;
-    n = 0;
-    while (isdigit((unsigned char)*p)) { n = n * 10 + (*p++ - '0'); if (n > LIMIT) return 0; }
-    while (*p == ' ' || *p == '\t') ++p;
-    if (*p) return 0; *result = n * sign; return 1;
 }
 static int builtin(char *name)
 {
     return !strcmp(name,"LEN") || !strcmp(name,"STR") || !strcmp(name,"CSTR") || !strcmp(name,"VAL") ||
-        !strcmp(name,"CINT") || !strcmp(name,"ABS") || !strcmp(name,"UBOUND") || !strcmp(name,"LBOUND") ||
+        !strcmp(name,"CINT") || !strcmp(name,"CLNG") || !strcmp(name,"CDBL") ||
+        !strcmp(name,"CSNG") || !strcmp(name,"INT") || !strcmp(name,"FIX") || !strcmp(name,"ABS") ||
+        !strcmp(name,"SIN") || !strcmp(name,"COS") || !strcmp(name,"TAN") || !strcmp(name,"ATN") ||
+        !strcmp(name,"SQR") || !strcmp(name,"EXP") || !strcmp(name,"LOG") || !strcmp(name,"SGN") || !strcmp(name,"UBOUND") || !strcmp(name,"LBOUND") ||
         !strcmp(name,"COUNT") || !strcmp(name,"LEFT") || !strcmp(name,"RIGHT") || !strcmp(name,"MID") ||
         !strcmp(name,"UCASE") || !strcmp(name,"LCASE");
 }
 static Value builtin_call(char *name, Value *args, int argc)
 {
-    Value v; Container *c; char text[STRING_LEN]; long n, start, count; int i;
+    Value v; Container *c; char text[STRING_LEN]; long n, start, count; int i; double x,whole,fraction;
     v = number(0);
     if (!argc) { fail("Builtin requires arguments"); return v; }
     if (!strcmp(name,"LEN")) {
         if (argc != 1 || args[0].kind != STRING) fail("Len expects one String"); else v.number = strlen(args[0].string);
     } else if (!strcmp(name,"STR") || !strcmp(name,"CSTR")) {
         if (argc != 1) fail("CStr expects one value"); else { format_value(args[0],text); if (!problem) v = string_value(text); }
-    } else if (!strcmp(name,"VAL") || !strcmp(name,"CINT")) {
-        if (argc != 1) fail("CInt expects one value");
-        else if (args[0].kind == NUMBER) v = args[0];
-        else if (args[0].kind != STRING || !parse_integer(args[0].string,&n)) fail("Invalid integer text"); else v = number(n);
-    } else if (!strcmp(name,"ABS")) {
-        if (argc != 1) fail("Abs expects one number"); else { n = numeric(args[0]); v = number(n < 0 ? -n : n); }
+    } else if (!strcmp(name,"VAL") || !strcmp(name,"CINT") || !strcmp(name,"CLNG") ||
+               !strcmp(name,"CDBL") || !strcmp(name,"CSNG")) {
+        if(argc!=1){fail("Numeric conversion expects one value");return v;}
+        if(args[0].kind==NUMBER)x=args[0].number;
+        else if(args[0].kind!=STRING || !parse_number(args[0].string,&x)){fail("Invalid numeric text");return v;}
+        if(!strcmp(name,"CINT") || !strcmp(name,"CLNG")){
+            if(x<INT_MINIMUM-0.5 || x>INT_MAXIMUM+0.5){fail("Integer exceeds 32-bit range");return v;}
+            whole=x<0?-floor(-x):floor(x);fraction=x-whole;
+            if(fraction>0.5 || (fraction==0.5 && fmod(whole,2)!=0))whole+=1;
+            if(fraction< -0.5 || (fraction== -0.5 && fmod(whole,2)!=0))whole-=1;
+            v=number(whole);integral(v);
+        }else {v=number(x);if(!strcmp(name,"CSNG"))put(&v,T_SINGLE,v);}
+    } else if (!strcmp(name,"ABS") || !strcmp(name,"INT") || !strcmp(name,"FIX")) {
+        if(argc!=1)fail("Numeric function expects one value");
+        else {x=numeric(args[0]);v=number(!strcmp(name,"ABS")?(x<0?-x:x):
+              !strcmp(name,"INT")?floor(x):x<0?-floor(-x):floor(x));}
+    } else if(!strcmp(name,"SIN") || !strcmp(name,"COS") || !strcmp(name,"TAN") ||
+              !strcmp(name,"ATN") || !strcmp(name,"SQR") || !strcmp(name,"EXP") ||
+              !strcmp(name,"LOG") || !strcmp(name,"SGN")){
+        if(argc!=1){fail("Numeric function expects one value");return v;}
+        x=numeric(args[0]);if(problem)return v;
+        if((!strcmp(name,"SQR") && x<0) || (!strcmp(name,"LOG") && x<=0)){
+            fail("Math domain error");return v;
+        }
+        errno=0;
+        if(!strcmp(name,"SIN"))x=sin(x);
+        else if(!strcmp(name,"COS"))x=cos(x);
+        else if(!strcmp(name,"TAN"))x=tan(x);
+        else if(!strcmp(name,"ATN"))x=atan(x);
+        else if(!strcmp(name,"SQR"))x=sqrt(x);
+        else if(!strcmp(name,"EXP"))x=exp(x);
+        else if(!strcmp(name,"LOG"))x=log(x);
+        else x=x>0?1:x<0?-1:0;
+        if(errno)fail("Math result exceeds numeric range");else v=number(x);
     } else if (!strcmp(name,"UBOUND") || !strcmp(name,"LBOUND") || !strcmp(name,"COUNT")) {
         c = container(args[0]);
         if (argc != 1) fail("Bound/Count expects one container");
@@ -816,8 +915,9 @@ static Value builtin_call(char *name, Value *args, int argc)
         else { v = args[0]; for (i = 0; v.string[i]; ++i) v.string[i] = (char)(name[0]=='U' ? toupper((unsigned char)v.string[i]) : tolower((unsigned char)v.string[i])); }
     } else {
         if (args[0].kind != STRING || argc < 2 || argc > 3) { fail("Left/Right/Mid expects String and bounds"); return v; }
-        n = strlen(args[0].string); start = 0; count = numeric(args[1]);
-        if (!strcmp(name,"MID")) { start = count - 1; count = argc == 3 ? numeric(args[2]) : n; }
+        n = strlen(args[0].string); start = 0; count = integral(args[1]);
+        if (!strcmp(name,"MID")) { if(count<1){fail("Invalid String bounds");return v;}
+            start = count - 1; count = argc == 3 ? integral(args[2]) : n; }
         else if (argc != 2) fail("Left/Right expects two arguments");
         else if (!strcmp(name,"RIGHT")) start = count >= n ? 0 : n - count;
         if (start < 0 || count < 0) { fail("Invalid String bounds"); return v; }
@@ -866,7 +966,7 @@ static Value gui_construct(int type,Value *args,int argc)
     memset(&r,0,sizeof(r));r.operation=GUI_CREATE;r.kind=kind;r.id=ngui;
     if(kind==GUI_WINDOW){
         if(argc!=3 || args[0].kind!=STRING){fail("New Window(title, width, height)");return v;}
-        sizes[0]=numeric(args[1]);sizes[1]=numeric(args[2]);
+        sizes[0]=integral(args[1]);sizes[1]=integral(args[2]);
         if(sizes[0]<120 || sizes[0]>640 || sizes[1]<64 || sizes[1]>480){fail("Invalid Window size");return v;}
         strcpy(r.text,args[0].string);r.width=(int)sizes[0];r.height=(int)sizes[1];
     }else{
@@ -874,7 +974,7 @@ static Value gui_construct(int type,Value *args,int argc)
             fail("New control(window, text, x, y, width, height)");return v;
         }
         r.parent=args[0].object;strcpy(r.text,args[1].string);
-        for(i=2;i<6;++i){sizes[i-2]=numeric(args[i]);if(sizes[i-2]<0 || sizes[i-2]>640){fail("Invalid control bounds");return v;}}
+        for(i=2;i<6;++i){sizes[i-2]=integral(args[i]);if(sizes[i-2]<0 || sizes[i-2]>640){fail("Invalid control bounds");return v;}}
         r.x=(int)sizes[0];r.y=(int)sizes[1];r.width=(int)sizes[2];r.height=(int)sizes[3];
     }
     if(problem || gui_request(&r)!=1)return v;
@@ -940,13 +1040,58 @@ static void application_run(void)
     application_running=0;
 }
 
+static Value midi_call(char *name,Value *args,int argc,int need_value)
+{
+    Value result;long values[PARAMS];int i,ok,count,expected;Container *array;unsigned char bytes[MIDI_PACKET];
+    result=number(0);expected=-1;
+    if(!strcmp(name,"ENABLED") || !strcmp(name,"LASTMESSAGE")){
+        if(argc){fail("MIDI query expects no arguments");return result;}
+        return !strcmp(name,"ENABLED")?number(midi_enabled()?-1:0):string_value(midi_last_message());
+    }
+    if(!strcmp(name,"CHECKRANGE")){
+        if(argc!=3){fail("CheckRange(value, minimum, maximum)");return result;}
+        for(i=0;i<3;++i)values[i]=integral(args[i]);
+        if(!problem && (values[1]>values[2] || values[0]<values[1] || values[0]>values[2]))fail("Value outside requested MIDI range");
+        return number(values[0]);
+    }
+    if(need_value){fail("MIDI command has no result");return result;}
+    if(!strcmp(name,"SYSEX")){
+        if(argc!=1 || args[0].kind!=ARRAY){fail("Midi.SysEx expects a byte array");return result;}
+        array=container(args[0]);if(!array || problem)return result;count=array->count;
+        if(count<2 || count>MIDI_PACKET){fail("SysEx length must be 2..128 bytes");return result;}
+        for(i=0;i<count && !problem;++i){values[0]=integral(array->item[i]);if(values[0]<0 || values[0]>255)fail("MIDI byte must be 0..255");else bytes[i]=(unsigned char)values[0];}
+        ok=!problem && midi_sysex(bytes,count);
+    }else{
+        if(!strcmp(name,"ENABLEOUTPUT") || !strcmp(name,"PANIC") || !strcmp(name,"STOPNOTES"))expected=1;
+        else if(!strcmp(name,"PROGRAMCHANGE") || !strcmp(name,"PITCHBEND"))expected=2;
+        else if(!strcmp(name,"NOTEON") || !strcmp(name,"CONTROLCHANGE"))expected=3;
+        else if(!strcmp(name,"NOTEOFF"))expected=argc==2?2:3;
+        else {fail("Unknown MIDI method");return result;}
+        if(argc!=expected){fail("Wrong number of MIDI arguments");return result;}
+        for(i=0;i<argc && !problem;++i)values[i]=integral(args[i]);if(problem)return result;
+        if(!strcmp(name,"ENABLEOUTPUT"))ok=midi_enable(values[0]!=0);
+        else if(!strcmp(name,"STOPNOTES"))ok=midi_stop_notes(values[0]);
+        else if(!strcmp(name,"PANIC"))ok=midi_panic(values[0]);
+        else if(!strcmp(name,"PROGRAMCHANGE"))ok=midi_program(values[0],values[1]);
+        else if(!strcmp(name,"PITCHBEND"))ok=midi_pitch(values[0],values[1]);
+        else if(!strcmp(name,"NOTEON"))ok=midi_note_on(values[0],values[1],values[2]);
+        else if(!strcmp(name,"NOTEOFF"))ok=midi_note_off(values[0],values[1],argc==3?values[2]:0);
+        else ok=midi_control(values[0],values[1],values[2]);
+    }
+    if(!ok && !problem){strncpy(midi_error,midi_last_error(),79);midi_error[79]=0;fail(midi_error);}return result;
+}
 /* A reference returns both its value and its assignable slot, if any. */
-static Value reference(char *name, int create, int need_value, Value **slot, int *slot_type, int *called)
+static Value reference(char *name, int create, int need_value, Value **slot, int *slot_type, int *called, int indexing)
 {
     Symbol *s; Value v, args[PARAMS]; Container *c;
     char member[NAME_LEN]; int m, argc, actual, view, f, base_dispatch, index, type; long raw_index;
     v = number(0); *slot = 0; *slot_type = T_ANY; *called = 0;
     base_dispatch = !strcmp(name,"MYBASE"); space(); s = find_symbol(name);
+    if(!s && !strcmp(name,"MIDI")){
+        if(*scan!='.'){fail("Expected Midi.method(...)");return v;}++scan;
+        if(!ident(member))return v;space();if(*scan!='('){fail("Expected MIDI method parentheses");return v;}
+        argc=arguments(args);*called=1;if(problem)return v;return midi_call(member,args,argc,need_value);
+    }
     if(!strcmp(name,"APPLICATION")){
         if(*scan!='.'){fail("Expected Application.Run() or Exit()");return v;}++scan;
         if(!ident(member))return v;space();if(*scan!='('){fail("Expected Application method parentheses");return v;}
@@ -976,12 +1121,15 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
         if (s) { v = s->value; if (v.kind==REFERENCE && s->type>=0) v.view=s->type; *slot=&s->value; *slot_type=s->type; }
     }
     space();
-    while (!problem && (*scan == '.' || (*scan == '(' && (v.kind == ARRAY || v.kind == COLLECTION)))) {
+    while (!problem && (*scan == '.' || (indexing && *scan == '(' && (v.kind == ARRAY || v.kind == COLLECTION)))) {
         if (*scan == '(') {
             c = container(v); argc = arguments(args);
             if (!c || problem) break;
             if (argc != 1) { fail("Indexing expects one subscript"); break; }
-            raw_index = numeric(args[0]) - c->lower;
+            raw_index = integral(args[0]);
+            if(problem)break;
+            if(raw_index<c->lower || raw_index>c->lower+c->count-1){fail("Container index out of bounds");break;}
+            raw_index -= c->lower;
             if (raw_index < 0 || raw_index >= c->count) { fail("Container index out of bounds"); break; }
             index = (int)raw_index; *slot = &c->item[index]; *slot_type = c->element_type; v = **slot; *called = 0; space(); continue;
         }
@@ -1014,7 +1162,10 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
             argc = arguments(args); *called = 1;
             if (!strcmp(member,"ITEM")) {
                 if (argc != 1) { fail("Item expects one index"); break; }
-                raw_index = numeric(args[0]) - c->lower;
+                raw_index = integral(args[0]);
+            if(problem)break;
+            if(raw_index<c->lower || raw_index>c->lower+c->count-1){fail("Container index out of bounds");break;}
+            raw_index -= c->lower;
                 if (raw_index < 0 || raw_index >= c->count) { fail("Container index out of bounds"); break; }
                 index = (int)raw_index; *slot = &c->item[index]; *slot_type = c->element_type; v = **slot;
             } else if (c->kind != COLLECTION) fail("Array supports Count and Item only");
@@ -1025,7 +1176,10 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
             } else if (!strcmp(member,"REMOVE")) {
                 if (argc != 1) fail("Remove expects one index");
                 else {
-                    raw_index = numeric(args[0]) - c->lower;
+                    raw_index = integral(args[0]);
+            if(problem)break;
+            if(raw_index<c->lower || raw_index>c->lower+c->count-1){fail("Container index out of bounds");break;}
+            raw_index -= c->lower;
                     if (raw_index < 0 || raw_index >= c->count) fail("Container index out of bounds");
                     else { index=(int)raw_index; memmove(c->item+index,c->item+index+1,(c->count-index-1)*sizeof(Value)); --c->count; ++c->revision; v=number(0); }
                 }
@@ -1036,7 +1190,13 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
             space(); continue;
         }
         actual = object_type(v); if (problem) break; view = v.view >= 0 ? v.view : actual;
-        if (*scan == '(') {
+        f=field_index(view,member);
+        if(f>=0){
+            if(allowed(accessor(),classes[view].field[f].owner,classes[view].field[f].visible)){
+                *slot=&objects[v.object].field[f];*slot_type=classes[view].field[f].type;v=**slot;
+                if(v.kind==REFERENCE && *slot_type>=0)v.view=*slot_type;
+            }
+        } else if (*scan == '(') {
             argc = arguments(args); *called = 1;
             if (base_dispatch && !strcmp(member,"NEW")) {
                 int first;
@@ -1074,7 +1234,7 @@ static Value reference(char *name, int create, int need_value, Value **slot, int
 static Value factor(void)
 {
     Value v, args[PARAMS], *slot, element; Container *c;
-    long n; int negative, unary, argc, type, called; char name[NAME_LEN];
+    int negative, unary, argc, type, called; char name[NAME_LEN];
     v=number(0); space();
     if (++expr_depth > 16) { fail("Expression nested too deeply"); --expr_depth; return v; }
     negative=unary=0;
@@ -1082,10 +1242,8 @@ static Value factor(void)
     if (*scan=='"') v=string_literal();
     else if (*scan=='(') {
         ++scan; v=expression(); space(); if (*scan==')') ++scan; else fail("Missing closing parenthesis");
-    } else if (isdigit((unsigned char)*scan)) {
-        n=0;
-        while (isdigit((unsigned char)*scan)) { n=n*10+(*scan++-'0'); if (n>LIMIT) { fail("Number exceeds 1000000"); n=0; break; } }
-        v=number(n);
+    } else if (isdigit((unsigned char)*scan) || *scan=='.') {
+        v=number_literal();
     } else if (word("TYPEOF")) {
         element=factor(); if (!word("IS") || !ident(name)) fail("Expected TypeOf object Is type");
         else {
@@ -1118,38 +1276,69 @@ static Value factor(void)
             space(); if (*scan!=',') break; ++scan;
         }
         space(); if (*scan==')') ++scan; else fail("Expected closing Array parenthesis");
-    } else if (ident(name)) v=reference(name,0,1,&slot,&type,&called);
+    } else if (ident(name)) v=reference(name,0,1,&slot,&type,&called,1);
+    space();
+    if(!problem && *scan=='^'){
+        double x,y;++scan;element=factor();x=numeric(v);y=numeric(element);
+        if(!problem){
+            if(!x && y<0)fail("Division by zero");
+            else if(x<0 && floor(y)!=y)fail("Math domain error");
+            else {errno=0;x=pow(x,y);if(errno==EDOM)fail("Math domain error");
+                else if(errno)fail("Math result exceeds numeric range");else v=number(x);}
+        }
+    }
     if (unary) v=number(negative ? -numeric(v) : numeric(v));
     --expr_depth; return v;
 }
 static Value product(void)
 {
-    Value a,b; long x,y; int mod; char op;
-    a=factor(); space();
-    while (!problem) {
-        mod=word("MOD");
-        if (!mod && *scan!='*' && *scan!='/') break;
-        op=mod ? '%' : *scan++; b=factor(); x=numeric(a); y=numeric(b);
-        if (problem) break;
-        if (op=='*') {
-            if (y && (x<0?-x:x)>LIMIT/(y<0?-y:y)) fail("Result exceeds numeric range"); else x*=y;
-        } else if (!y) fail("Division by zero"); else if (op=='%') x%=y; else x/=y;
-        a=number(x); space();
+    Value a,b;double x,y,z;char op;
+    a=factor();space();
+    while(!problem && (*scan=='*' || *scan=='/')){
+        op=*scan++;b=factor();x=numeric(a);y=numeric(b);if(problem)break;
+        if(op=='*')z=x*y;
+        else if(!y){fail("Division by zero");break;}else z=x/y;
+        if(!z && x && y)fail("Numeric underflow");
+        a=number(z);space();
+    }
+    return a;
+}
+static Value integer_division(void)
+{
+    Value a,b;long x,y;double z;
+    a=product();space();
+    while(!problem && *scan=='\\'){
+        ++scan;b=product();x=integral(a);y=integral(b);if(problem)break;
+        if(!y){fail("Division by zero");break;}
+        z=(double)x/(double)y;z=z<0?-floor(-z):floor(z);
+        a=number(z);space();
+    }
+    return a;
+}
+static Value mod_expression(void)
+{
+    Value a,b;long x,y;double z;
+    a=integer_division();
+    while(!problem && word("MOD")){
+        b=integer_division();x=integral(a);y=integral(b);if(problem)break;
+        if(!y){fail("Division by zero");break;}
+        z=(double)x/(double)y;z=z<0?-floor(-z):floor(z);
+        a=number((double)x-z*(double)y);
     }
     return a;
 }
 static Value sum(void)
 {
-    Value a,b; long x,y; char op;
-    a=product(); space();
+    Value a,b; double x,y; char op;
+    a=mod_expression(); space();
     while (!problem && (*scan=='+' || *scan=='-' || *scan=='&')) {
-        op=*scan++; b=product();
+        op=*scan++; b=mod_expression();
         if ((op=='+' || op=='&') && a.kind==STRING && b.kind==STRING) {
             if (strlen(a.string)+strlen(b.string)>=STRING_LEN) fail("String exceeds 127 characters"); else strcat(a.string,b.string);
         } else {
             if (op=='&') { fail("String concatenation expects Strings"); break; }
             x=numeric(a); y=numeric(b); x=op=='+' ? x+y : x-y;
-            if (x>LIMIT || x< -LIMIT) fail("Result exceeds numeric range"); a=number(x);
+            a=number(x);
         }
         space();
     }
@@ -1283,24 +1472,24 @@ static void print_line(void)
 static void read_input(void)
 {
     char prompt[STRING_LEN], buffer[STRING_LEN], name[NAME_LEN];
-    Value *slot,v; int type,called,ok; long n;
+    Value *slot,v; int type,called,ok; long n; double value;
     strcpy(prompt,"Input"); space();
     if (*scan=='"') {
         v=string_literal(); strcpy(prompt,v.string); space();
         if (*scan!=';' && *scan!=',') { fail("Input prompt must be followed by ;"); return; } ++scan;
     }
     if (!ident(name)) return;
-    v=reference(name,1,1,&slot,&type,&called);
+    v=reference(name,1,1,&slot,&type,&called,1);
     if (!slot || called || !endline()) { if (!problem) fail("Input requires an assignable variable"); return; }
-    if (type!=T_STRING && type!=T_NUMBER && type!=T_BOOLEAN && type!=T_ANY) { fail("Input expects String or numeric target"); return; }
+    if (type!=T_STRING && type!=T_NUMBER && type!=T_BOOLEAN && type!=T_ANY && type!=T_DOUBLE && type!=T_SINGLE) { fail("Input expects String or numeric target"); return; }
     buffer[0]=0;
     if (input_reader) ok=input_reader(prompt,buffer,sizeof(buffer));
     else { printf("%s ",prompt); fflush(stdout); ok=fgets(buffer,sizeof(buffer),stdin)!=0; }
     buffer[STRING_LEN-1]=0;
     if (!ok) { fail("Input cancelled"); return; }
     n=strlen(buffer); while (n && (buffer[n-1]=='\r' || buffer[n-1]=='\n')) buffer[--n]=0;
-    if (type==T_STRING || (type==T_ANY && (v.kind==STRING || !parse_integer(buffer,&n)))) v=string_value(buffer);
-    else if (!parse_integer(buffer,&n)) { fail("Invalid numeric Input"); return; } else v=number(n);
+    if (type==T_STRING || (type==T_ANY && (v.kind==STRING || !parse_number(buffer,&value)))) v=string_value(buffer);
+    else if (!parse_number(buffer,&value)) { fail("Invalid numeric Input"); return; } else v=number(value);
     put(slot,type,v);
 }
 static void bounds(long *lower, long *upper, int *dynamic)
@@ -1308,8 +1497,8 @@ static void bounds(long *lower, long *upper, int *dynamic)
     space(); *dynamic=0; *lower=0; *upper=-1;
     if (*scan!='(') { fail("Expected array bounds (...)"); return; } ++scan; space();
     if (*scan==')') { ++scan; *dynamic=1; return; }
-    *upper=numeric(expression());
-    if (word("TO")) { *lower=*upper; *upper=numeric(expression()); }
+    *upper=integral(expression());
+    if (word("TO")) { *lower=*upper; *upper=integral(expression()); }
     space(); if (*scan!=')') fail("Expected closing bounds parenthesis"); else ++scan;
 }
 static void simple(char *text)
@@ -1350,17 +1539,19 @@ static void simple(char *text)
         if (level) fail("Use Return or Exit Sub inside a method"); else if (endline()) stopped=1; return;
     }
     if (word("REDIM")) {
-        preserve=word("PRESERVE"); if (!ident(name)) return; s=lookup(name,0); if (!s) return;
-        if (s->type<ARRAY_TYPE-32) { fail("ReDim requires an array variable"); return; }
+        preserve=word("PRESERVE");if(!ident(name))return;
+        old=reference(name,0,1,&slot,&type,&called,0);
+        if(!slot || called || problem)return;
+        if (type<ARRAY_TYPE-32) { fail("ReDim requires an array variable"); return; }
         bounds(&lower,&upper,&dynamic); if (!endline() || problem) return;
         if (dynamic) { fail("ReDim requires bounds"); return; }
-        old=s->value; v=make_container(ARRAY,s->type-ARRAY_TYPE,lower,upper);
+        v=make_container(ARRAY,type-ARRAY_TYPE,lower,upper);
         if (preserve && old.object>=0 && !problem) {
             c=container(v); previous=container(old);
             if (c->lower!=previous->lower) fail("ReDim Preserve cannot change lower bound");
             else for (i=0; i<c->count && i<previous->count; ++i) c->item[i]=previous->item[i];
         }
-        if (!problem) s->value=v; return;
+        if (!problem) put(slot,type,v); return;
     }
     if (word("DIM")) {
         if (!declaration_name(name,0)) return; s=declare(name); if (!s) return;
@@ -1381,7 +1572,7 @@ static void simple(char *text)
     }
     preserve=word("CALL"); if (!preserve) word("LET");
     if (!ident(name)) return;
-    v=reference(name,!preserve,0,&slot,&type,&called); space();
+    v=reference(name,!preserve,0,&slot,&type,&called,1); space();
     if (*scan=='=' && !preserve) {
         if (!slot) { fail("Expression is not assignable"); return; } ++scan;
         v=expression(); if (endline()) put(slot,type,v);
@@ -1489,7 +1680,7 @@ static void execute_do(int start,int end)
 static void execute_for(int start,int end)
 {
     Symbol *s; Value initial,finish,step,sequence; Container *c;
-    char name[NAME_LEN],closing[NAME_LEN]; long n,limit,delta; int each,type,i,action,first; long revision;first=1;
+    char name[NAME_LEN],closing[NAME_LEN]; double n,limit,delta,previous; int each,type,i,action,first; long revision;first=1;
     pc=start; scan=code[start].text; word("FOR"); each=word("EACH");
     if (!declaration_name(name,0)) return;
     if (word("AS")) {
@@ -1515,7 +1706,7 @@ static void execute_for(int start,int end)
             if (c->revision!=revision) { pc=start; fail("Collection changed during For Each"); break; }
         }
     } else {
-        if (s->type!=T_NUMBER && s->type!=T_ANY) { fail("Numeric For requires Integer/Long counter"); return; }
+        if (s->type!=T_NUMBER && s->type!=T_ANY && s->type!=T_SINGLE && s->type!=T_DOUBLE) { fail("Numeric For requires a numeric counter"); return; }
         space(); if (*scan!='=') { fail("For expects = start To end"); return; } ++scan;
         initial=expression(); if (!word("TO")) { fail("For expects To"); return; }
         finish=expression(); step=word("STEP") ? expression() : number(1);
@@ -1523,6 +1714,7 @@ static void execute_for(int start,int end)
         if (!endline() || problem) return;
         if (!delta) { fail("For Step cannot be zero"); return; }
         if (!put(&s->value,s->type,initial)) return;
+        n=numeric(s->value);
         pc=end; scan=code[end].text; word("NEXT"); space();
         if (*scan && *scan!='\'') { if (!ident(closing) || strcmp(name,closing)) fail("Next variable does not match For"); }
         endline();
@@ -1530,9 +1722,11 @@ static void execute_for(int start,int end)
             if(!first && !debug_line(start))break;first=0;
             run_range(start+1,end); action=handle_signal(B_FOR); if (action || problem || returned || stopped) break;
             if(!debug_line(end))break;
-            pc=start; n=numeric(s->value)+delta;
-            if (n>LIMIT || n< -LIMIT) { fail("For counter exceeds numeric range"); break; }
+            pc=start; previous=numeric(s->value);n=previous+delta;
+            if(n==previous){fail("For Step is too small for counter precision");break;}
             put(&s->value,s->type,number(n));
+            if(numeric(s->value)==previous){fail("For Step is too small for counter precision");break;}
+            n=numeric(s->value);
         }
     }
 }
@@ -1633,6 +1827,7 @@ int basic_run_project(char source[MAX_LINES][LINE_LEN],int count,char *mainpath,
 {
     char path[BASIC_PATH],text[OUT_LEN]; int i;
     sink=output; sink_used=used; *used=0;
+    midi_set_logger(emit);midi_begin();
     executing=in_debug=ngui=nhandlers=application_running=application_exit=0;
     if(gui_reader){BasicGuiRequest reset;memset(&reset,0,sizeof(reset));reset.operation=GUI_RESET;gui_reader(&reset);}
     ncode=nfiles=nclasses=nmethods=nobjects=ncontainers=level=returned=stopped=signal_kind=signal_continue=0;
@@ -1652,6 +1847,7 @@ int basic_run_project(char source[MAX_LINES][LINE_LEN],int count,char *mainpath,
     if (!problem) run_range(0,ncode);
     if (!problem && signal_kind) fail("Exit/Continue has no matching block");
     executing=0;
+    if(!midi_finish() && !problem){strncpy(midi_error,midi_last_error(),79);midi_error[79]=0;fail(midi_error);}
     if(gui_reader){BasicGuiRequest reset;memset(&reset,0,sizeof(reset));reset.operation=GUI_RESET;gui_reader(&reset);}
     if (problem) { sprintf(text,"%.24s:%d: %.44s",basic_file_name(failure_file),failure_row,problem); emit(text); return failure_row; }
     emit("Program finished."); return 0;
@@ -1667,12 +1863,12 @@ static void debug_type(int type,char *text)
     if(type>=ARRAY_TYPE-32){debug_type(type-ARRAY_TYPE,text);strcat(text,"()");}
     else if(type>=0 && type<nclasses)strcpy(text,classes[type].name);
     else if(type<=T_WINDOW && type>=T_CHECKBOX)strcpy(text,gui_name(-type-7));
-    else strcpy(text,type==T_STRING?"String":type==T_BOOLEAN?"Boolean":type==T_ANY?"Variant":type==T_COLLECTION?"Collection":type==T_OBJECT?"Object":"Integer");
+    else strcpy(text,type==T_DOUBLE?"Double":type==T_SINGLE?"Single":type==T_STRING?"String":type==T_BOOLEAN?"Boolean":type==T_ANY?"Variant":type==T_COLLECTION?"Collection":type==T_OBJECT?"Object":"Integer");
 }
 static void debug_value(Value value,char *text)
 {
     if(value.kind==STRING){text[0]='"';strncpy(text+1,value.string,123);text[124]=0;strcat(text,"\"");}
-    else if(value.kind==NUMBER)sprintf(text,"%ld",value.number);
+    else if(value.kind==NUMBER)format_value(value,text);
     else if(value.object<0)strcpy(text,"Nothing");
     else if(value.kind==GUI_VALUE){
         BasicGuiRequest r;memset(&r,0,sizeof(r));r.operation=GUI_GET;r.id=value.object;strcpy(r.property,"TEXT");

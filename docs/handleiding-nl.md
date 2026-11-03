@@ -1,6 +1,6 @@
 # TT BASIC Studio 0.5 — Nederlandstalige handleiding
 
-TT BASIC Studio is een BASIC-interpreter en GEM-ontwikkelomgeving voor de Atari TT. De IDE en je BASIC-programma draaien op de Atari zelf. De huidige versie is gebouwd met Pure C en getest in Hatari met TOS 3.06, TT Medium (640 × 480, 16 kleuren), 8 MiB ST-RAM en 256 MiB TT-RAM. Testen op een fysieke TT staat nog open.
+TT BASIC Studio is een BASIC-interpreter en GEM-ontwikkelomgeving voor de Atari TT. De IDE en je BASIC-programma draaien op de Atari zelf. De huidige versie is gebouwd met Pure C en getest in Hatari met TOS 3.05, TT Medium (640 × 480, 16 kleuren), 8 MiB ST-RAM en 256 MiB TT-RAM. Testen op een fysieke TT staat nog open.
 
 Dit is een vroege taalversie. Deze handleiding beschrijft wat **nu werkt**; het is geen documentatie voor Microsoft Visual Basic. BASIC-trefwoorden en interpreterfoutmeldingen zijn Engels, ook wanneer de IDE Nederlands of Duits toont.
 
@@ -100,9 +100,9 @@ Rem Dit is commentaar
 Print total ' Commentaar na een statement
 ```
 
-`Let` is optioneel. `Integer` en `Long` zijn in deze interpreter dezelfde numerieke soort: gehele getallen van **−1.000.000 tot en met 1.000.000**. Dat is een taalgrens, niet de oorspronkelijke VB-breedte van `Integer` of de volledige 32-bitrange van C.
+`Let` is optioneel. Vanaf 0.10 zijn `Integer` en `Long` beide gehele 32-bit getallen: **−2.147.483.648 tot en met 2.147.483.647**. Dit dialect gebruikt dus geen 16-bit VB Integer. `Single` en `Double` ondersteunen kommagetallen, met een punt in de broncode. Zie hoofdstuk 20 voor bereiken, conversies en migratie.
 
-Numerieke variabelen beginnen op nul. Voor compatibiliteit kun je A tot en met Z ook zonder `Dim` lezen; ze beginnen op nul. Toekennen aan een nog onbekende naam maakt een numerieke variabele. Voor andere onbekende namen geeft lezen een fout; gebruik bij voorkeur altijd `Dim`.
+Numerieke variabelen beginnen op nul. Voor compatibiliteit kun je A tot en met Z ook zonder `Dim` lezen; ze beginnen op nul. Toekennen aan een nog onbekende naam maakt een Variant-variabele. Voor andere onbekende namen geeft lezen een fout; gebruik bij voorkeur altijd `Dim`.
 
 Een dubbele `Dim` in dezelfde scope geeft een fout. Parameters en lokaal gedeclareerde variabelen zijn lokaal aan een methode; een lokale `Dim` kan een globale naam afschermen. Een toekenning aan een al bestaande globale naam gebruikt die globale variabele wanneer er geen lokale naam bestaat.
 
@@ -111,11 +111,13 @@ Een dubbele `Dim` in dezelfde scope geeft een fout. Parameters en lokaal gedecla
 | Operator | Betekenis |
 | --- | --- |
 | `+`, `-` | Optellen, aftrekken; ook unaire tekens |
-| `*`, `/` | Vermenigvuldigen, gehele deling |
+| `*`, `/` | Vermenigvuldigen, gewone deling |
+| `\`, `Mod` | Gehele deling en rest, met gehele 32-bit operanden |
+| `^` | Machtsverheffen |
 | `(...)` | Groeperen |
 | `=`, `<>`, `<`, `>`, `<=`, `>=` | Numerieke vergelijking |
 
-Vermenigvuldigen en delen gaan vóór optellen en aftrekken. `7 / 2` geeft `3`; `7 / -2` geeft `-3`. Vergelijkingen geven `-1` voor waar en `0` voor onwaar. Delen door nul en resultaten buiten het bereik geven een fout.
+Rekenvolgorde: haakjes, machten (van rechts naar links), unaire tekens, `*`/`/`, `\`, `Mod`, `+`/`-`. `7 / 2` geeft `3.5`; `7 \ 2` geeft `3`. Vergelijkingen geven `-1` voor waar en `0` voor onwaar. Delen door nul, overflow en underflow geven een fout.
 
 ```vb
 Print 2 + 3 * 4
@@ -283,7 +285,7 @@ De regel is de fysieke regel in dat bestand, inclusief lege regels en commentaar
 | `Sub cannot be used as an expression` | Gebruik een Function wanneer een resultaat nodig is |
 | `Unknown variable` | Declareer de naam en controleer spelling en scope |
 | `Division by zero` | Deler mag geen nul zijn |
-| `Result exceeds numeric range` | Houd tussenresultaten binnen ±1.000.000 |
+| `Result exceeds numeric range` | Houd tussenresultaten binnen het numerieke bereik; zie hoofdstuk 20 |
 | `Maximum ...` of `exceeds ...` | Bekijk de versiegrenzen hieronder |
 
 ## 9. Huidige grenzen en ontbrekende functies
@@ -303,7 +305,7 @@ De regel is de fysieke regel in dat bestand, inclusief lege regels en commentaar
 | Parameters per methode/procedure | 8, getypeerd |
 | Geneste methodeaanroepen | 8 |
 | Geneste expressies | 16 |
-| Numeriek bereik | −1.000.000 tot +1.000.000 |
+| Numeriek bereik | Integer/Long: −2.147.483.648 tot +2.147.483.647; Double: zie hoofdstuk 20 |
 | Tekens per uitvoerregel | 79 |
 
 Nog niet aanwezig zijn multidimensionale arrays, generieke collecties, overloads, automatische geheugenopruiming en uitzonderingsafhandeling; zie hoofdstuk 18 voor de formulierontwerper. De taal maakt nog geen zelfstandige PRG van je BASIC-programma. Dit is een eigen BASIC-dialect en geen volledige VB-implementatie.
@@ -421,7 +423,7 @@ Collecties zijn geordend, ongetypeerd en beginnen bij index 1. Add voegt achtera
 
 ### Strings en invoer
 
-Stringvariabelen, stringparameters en stringresultaten werken. Beschikbare functies: Len, CStr/Str, CInt/Val, Left, Right, Mid, UCase, LCase en Abs. Mid gebruikt een startpositie vanaf 1. CInt/Val verwachten een volledig geldig geheel getal in het ondersteunde bereik. `Mod` geeft de rest van een gehele deling.
+Stringvariabelen, stringparameters en stringresultaten werken. Beschikbare functies: Len, CStr/Str, CInt/CLng/CDbl/CSng/Val, Left, Right, Mid, UCase, LCase en Abs. Mid gebruikt een startpositie vanaf 1. Val/CDbl accepteren een volledig geldige decimale tekst, ook met exponent. CInt/CLng ronden af naar een geheel 32-bit getal; halve waarden naar het dichtstbijzijnde even getal. Int rondt naar beneden af, Fix kapt richting nul af. `Mod` geeft de rest van een gehele deling.
 
 ```vb
 Dim name As String
@@ -483,6 +485,16 @@ Deze methode hoort binnen een klasse met Implements IShow. Een klasse kan maxima
 ## 13. Gereserveerde woorden en uitvoergrenzen
 
 De interpreter gebruikt een centrale lijst van geïmplementeerde taalwoorden en weigert die als gedeclareerde naam. Daaronder vallen de structuurwoorden, typen, zichtbaarheid, objectwoorden, logische operatoren, True/False/Nothing en Input. New is alleen als constructornaam een uitzondering. Namen van hulpfuncties zoals Len en Count zijn contextuele functienamen en geen taalkeywords.
+
+
+```text
+IF THEN ELSE ELSEIF END WHILE WEND FOR EACH IN TO STEP NEXT SELECT CASE IS
+ISNOT DO LOOP UNTIL EXIT CONTINUE DIM AS NEW CLASS INTERFACE INHERITS
+IMPLEMENTS PUBLIC PRIVATE PROTECTED OVERRIDABLE OVERRIDES SUB FUNCTION RETURN
+CALL LET PRINT INPUT REM IMPORTS INTEGER LONG SINGLE DOUBLE BOOLEAN STRING
+VARIANT OBJECT COLLECTION TRUE FALSE NOTHING ME MYBASE AND OR NOT XOR MOD
+REDIM PRESERVE TYPEOF ARRAY ADDHANDLER REMOVEHANDLER ADDRESSOF STOP
+```
 
 Extra grenzen in 0.4: 16 klassen/interfaces samen, 16 velden inclusief geërfde velden per klasse, 64 methoden/procedures, 64 objectinstanties, 64 variabelen per scope, acht parameters en 32 geneste blokken. Arrays/collecties: 32 allocaties van maximaal 128 elementen. Strings: 127 tekens. Een uitvoering stopt na 1.000.000 stappen om eindeloze programma's te begrenzen. Druk tijdens een lopend programma op **Escape** om eerder af te breken; bij een invoervenster gebruik je Annuleren. De Pure C-build gebruikt een stack van 512 KiB.
 
@@ -612,7 +624,7 @@ Grenzen: vier gelijktijdig aangemaakte vensters, 64 GUI-objecten inclusief venst
 
 **F8 is vanaf 0.7 voor debuggen. Bestand toevoegen is verplaatst naar Ctrl+F7.** Nieuw bestand blijft F7. De debugger heeft geen F11/F12 nodig en werkt dus met de oorspronkelijke Atari-toetsenbordfunctietoetsen.
 
-Open DEBUG.TBP om een korte methodeaanroep te volgen. Zet bijvoorbeeld met F9 een breakpoint op `result = calculator.Double(startValue)`. F5 loopt tot die regel; F8 stapt de methode binnen, Shift+F8 voert de methode volledig uit, en Ctrl+Shift+F8 loopt door tot de aanroeper verdergaat. Bestaande breakpoints blijven actief tijdens stappen. De gele regel is de volgende uit te voeren regel. `Stop` in BASIC vraagt eveneens een debuggerpauze aan.
+Open DEBUG.TBP om een korte methodeaanroep te volgen. Zet bijvoorbeeld met F9 een breakpoint op `result = calculator.DoubleValue(startValue)`. F5 loopt tot die regel; F8 stapt de methode binnen, Shift+F8 voert de methode volledig uit, en Ctrl+Shift+F8 loopt door tot de aanroeper verdergaat. Bestaande breakpoints blijven actief tijdens stappen. De gele regel is de volgende uit te voeren regel. `Stop` in BASIC vraagt eveneens een debuggerpauze aan.
 
 Rechts staan de aanroepstack en variabelen. Met `<` en `>` kies je een stackframe; de editor toont de bijbehorende bronregel. Het frame 0 is het hoofdprogramma. De lijst bevat parameters, lokale variabelen, Me-velden en globale variabelen. Pijl omhoog/omlaag of de pijltjes onderaan scrollen de lijst. Klik op een variabele of druk Ctrl+I om de volledige getoonde waarde en het type te lezen. GUI-objecten tonen ook hun tekst. Arrays en collecties tonen hun aantal elementen; losse elementen en velden van andere objecten zijn nog niet uitklapbaar. Inspectie voert geen BASIC-methoden uit en wijzigt geen variabelen.
 
@@ -672,3 +684,112 @@ Het formulier staat samen met de BASIC-code in MAIN.BAS; er is geen apart resour
 ### Grenzen
 
 De eerste ontwerper beheert één formulier in het startbestand van een project, met maximaal zestien bedieningselementen. Formaat: 120–600 pixels breed en 64–400 hoog; elementen moeten daarbinnen passen. De bestaande tekstlimieten en bronlimiet van 256 regels gelden ook voor gegenereerde code en handlers. Bij overschrijding blijft de oorspronkelijke bron intact en kun je het ontwerp aanpassen. Controleer breakpoints na layoutwijzigingen: die gebruiken nog fysieke regelnummers. Er is nog geen meervoudige selectie, automatische refactoring van eigen code of import van willekeurige handgeschreven GUI-layouts.
+
+## 19. MIDI en Yamaha DX7-demo (0.9)
+
+Kies **Project → DX7 MIDI-demo openen**, daarna F5. Of open C:\TTBASIC\DX7DEMO.TBP. Het paneel begint altijd in **droogtestmodus**: berichten verschijnen als hexadecimale bytes in het uitvoerpaneel, maar worden niet verstuurd. Kies MIDI-kanaal 1–16 en interne voice 1–32. Select voice kiest het geluid. Apply sound verstuurt algoritme, feedback en het niveau van de gekozen operator. Note 60 on/off speelt/stopt een testnoot; Panic stuurt sustain-off en 128 expliciete Note Off-berichten op het laatst gebruikte kanaal. Close sluit het venster. Panic blijft bruikbaar als een invoerveld ongeldig is.
+
+Vink **Send MIDI OUT** aan om werkelijk te versturen. Een TX-melding betekent dat bytes zijn aangeboden aan de MIDI-uitvoer, niet dat de synthesizer de ontvangst bevestigd heeft. Er is geen automatische apparaatdetectie of MIDI-ontvangst. De invoervelden zijn gewenste waarden, geen uitgelezen instellingen van de DX7.
+
+### Aansluiten
+
+Op een echte TT verbind je MIDI OUT met MIDI IN van de DX7 met een standaard MIDI-kabel. Audio komt uit de DX7, niet uit TT BASIC. Stel op de originele DX7 hetzelfde ontvangstkanaal in. Voor SysEx-parameterwijzigingen moeten System Information en de juiste geheugenprotectie-instelling volgens de Yamaha-handleiding worden ingesteld: System Information beschikbaar en Memory Protect uit. Kies eerst de gewenste voice. Geluid kiezen vervangt de huidige selectie, inclusief eventuele onopgeslagen edits; bewaar die op de DX7 wanneer je ze wilt behouden.
+
+Op macOS gebruikt Hatari een PortMidi-uitvoerpoort. Sluit een USB-MIDI-interface aan vóór je Hatari start en kies de juiste poort onder de MIDI-apparaatinstellingen. Start Hatari opnieuw als een nieuw aangesloten poort niet verschijnt. Alleen de checkbox in de demo aanvinken stelt de Hatari-poort niet in. De demo kan volledig worden onderzocht in droogtestmodus zonder interface of synthesizer. Ontwikkeltests wijzigen je Hatari-configuratie niet.
+
+### BASIC-API
+
+| Aanroep | Betekenis |
+|---|---|
+| Midi.EnableOutput(True/False) | Werkelijke uitvoer aan/uit; elke F5 begint uit |
+| Midi.Enabled() | Boolean: werkelijke uitvoer ingeschakeld |
+| Midi.LastMessage() | Laatste bericht/status als String |
+| Midi.CheckRange(value, minimum, maximum) | Gecontroleerde Integer; buiten bereik geeft een runtimefout |
+| Midi.NoteOn(channel, note, velocity) | Kanaal 1–16; noot en aanslag 0–127 |
+| Midi.NoteOff(channel, note[, velocity]) | Noot loslaten; standaard release-velocity 0 |
+| Midi.ProgramChange(channel, program) | MIDI-programmanummer 0–127 |
+| Midi.ControlChange(channel, controller, value) | Controller en waarde 0–127 |
+| Midi.PitchBend(channel, value) | 0–16383; midden 8192 |
+| Midi.SysEx(bytes) | Array van 2–128 bytes, inclusief 240/F0 en 247/F7 |
+| Midi.StopNotes(channel) | Alleen door deze uitvoering gestarte noten/sustain loslaten |
+| Midi.Panic(channel) | Sustain uit en Note Off voor alle 128 nootnummers |
+
+```basic
+Midi.EnableOutput(False)
+Midi.NoteOn(1, 60, 96)
+Print Midi.LastMessage()
+Midi.NoteOff(1, 60)
+```
+
+Dit toont `DRY: 90 3C 60` voor Note On. Een SysEx-array moet met F0 beginnen, met F7 eindigen en daartussen uitsluitend 7-bit data bevatten. Er wordt geen running status gebruikt. Het log toont lange berichten verkort; de uitvoer stuurt het volledige gevalideerde bericht.
+
+Noten worden per kanaal bijgehouden. Stoppen, programma-einde, fouten en uitschakelen van uitvoer laten eigen noten en ingeschakelde sustain los. Ook een debuggerpauze laat eigen noten los; doorgaan speelt ze niet automatisch opnieuw. Note On met velocity 0 geldt als Note Off. Deze administratie betreft berichten van dit programma, niet wat elders op het instrument wordt gespeeld.
+
+### De DX7-klasse
+
+DX7.BAS bevat de BASIC-klasse en de zichtbare opbouw van de zeven-byte Yamaha-berichten. Een buffer wordt hergebruikt, zodat herhaald aanpassen geen nieuwe arrays verbruikt.
+
+```basic
+Imports "DX7.BAS"
+Dim synth As New DX7(1)
+synth.Program(1)
+synth.Algorithm(6)
+synth.Feedback(3)
+synth.OperatorLevel(1, 90)
+Print Midi.LastMessage()
+```
+
+Zonder EnableOutput(True) blijft dit een droogtest. De klasse gebruikt voor voices en algoritmen 1–32; op de MIDI-draad worden deze waar nodig nulgebaseerd. Feedback is 0–7, operators 1–6 en niveau 0–99. Kanaal wisselen en een programma kiezen laten eerst eigen noten op het oude kanaal los. Ctrl+D opent het paneel in de formulierontwerper; de eventcode blijft bewerkbaar.
+
+Deze demo is gericht op de originele DX7. De parameterindeling is gecontroleerd aan Yamaha's MIDI Data Format, pp. 30–32 van de [DX7-handleiding](https://usa.yamaha.com/files/download/other_assets/9/333979/DX7E1.pdf). Het algoritme gebruikt parameter 134, feedback 135 en operatorniveau `(6 - operator) * 21 + 16`. Er worden geen patchbanken, opslagcommando's of bulktransfers verstuurd. Handelingen en berichten zijn in software/emulatie getest; een fysieke DX7-test staat nog open.
+
+### Arturia DX7 V via MIDI Learn
+
+De demo start met **Arturia CC18** aangevinkt. Koppel in DX7 V de algoritmekeuze via MIDI Learn aan kanaal 1, CC 18; kies in de demo hetzelfde kanaal. **Apply sound** vertaalt Algorithm 1–32 naar CC-waarden 0–127. Voice, feedback en operatorniveau zijn in deze modus uitgeschakeld: hun Arturia-koppelingen zijn nog niet ingesteld. Zet Arturia CC18 uit voor de originele Yamaha SysEx-bediening. MIDI OUT begint uitgeschakeld. De Arturia-koppeling moet in DX7 V bestaan; de demo maakt deze niet zelf aan.
+
+## 20. Getallen en arrayvelden (0.10)
+
+`Single` gebruikt 32-bit floating-pointprecisie (ongeveer 6–7 significante cijfers). `Double` gebruikt de precisie van de C-runtime, minimaal 15 significante cijfers; Pure C gebruikt intern extended precision. PRINT/CStr en de debugger tonen maximaal 15 significante cijfers. Afgeronde schermtekst betekent niet dat de interne waarde exact decimaal is. Vergelijk berekende kommagetallen bij voorkeur met een tolerantie, bijvoorbeeld `Abs(a - b) < 0.000001`. Dit is geen exacte decimale Currency-implementatie.
+
+Het ondersteunde Double-bereik is nul of een absolute waarde van 1e-300 tot 1e300. Single ondersteunt nul of ongeveer 1.175494e-38 tot 3.402823e38; subnormale waarden worden afgewezen. Ongeldige getallen, bereikoverschrijding en underflow leveren fouten op. Literalen: `0.5`, `.25`, `1.`, `1.5e-3`. Komma's scheiden argumenten.
+
+```vb
+Dim price As Double = 12.5
+Dim total As Double = price * 1.21
+Print total
+Print 7 / 2
+Print 7 \ 2
+Print 2 ^ 3 ^ 2
+Print CInt(2.5)
+Print CInt(3.5)
+```
+
+Uitvoer: 15.125, 3.5, 3, 512, 2 en 4. `Integer`/`Long`-variabelen, arrayindices, arraygrenzen, MIDI-data en schermcoördinaten eisen gehele waarden; breuken worden niet stilzwijgend afgekapt. Kies zelf CInt/CLng (afronden), Fix (richting nul), of Int (naar beneden). `CDbl`, `CSng` en `Val` converteren getallen of volledig geldige numerieke tekst. Input ondersteunt ook Single/Double en decimale invoer.
+
+Wiskundefuncties: Abs, Sgn, Sqr, Sin, Cos, Tan, Atn, Exp en Log. Hoeken gebruiken radialen; Log is de natuurlijke logaritme. Sqr van een negatief getal, Log van nul/negatief en een negatieve basis met een niet-gehele exponent geven een domeinfout. `For` ondersteunt ook Single/Double-tellers en fractionele Step; een stap die de teller door precisieverlies niet kan veranderen geeft een fout.
+
+Arrayvelden kunnen vast of dynamisch zijn. Elke instantie krijgt zijn eigen vaste array. Vaste veldgrenzen moeten bij het laden beschikbaar zijn: gebruik numerieke literalen. Publieke toegang, private toegang via Me, overerving en ReDim Preserve werken:
+
+```vb
+Class Measurements
+    Public values(1 To 3) As Double
+    Private history() As Double
+    Public Sub New()
+        ReDim Me.history(2)
+        Me.history(1) = 0.5
+        ReDim Preserve Me.history(4)
+        Me.values(1) = Me.history(1)
+    End Sub
+End Class
+Dim sample As New Measurements
+sample.values(2) = sample.values(1) / 2
+Print sample.values(2)
+```
+
+### Migreren vanaf 0.9
+
+`/` geeft nu gewone deling. Gebruik `\` waar afkappen van gehele deling bedoeld is. Bestaande breuken naar Integer/Long vereisen een expliciete conversie. Single en Double zijn nu gereserveerde typenamen: hernoem bijvoorbeeld een methode Double naar DoubleValue. Het bijgewerkte DEBUG.BAS en de MIDI-demo's doen dit al. Bestaande eigen bronbestanden worden niet automatisch gewijzigd.
+
+### Status voor verspreiding
+
+TT BASIC 0.10 is een begrensd, op VB geïnspireerd dialect. De hier beschreven taalconstructies worden getest; het is geen volledige VB-implementatie. Meerdimensionale arrays, bestandstoegang vanuit BASIC, generieke collecties, overloads, garbage collection en exception handling ontbreken. De limieten op bronnen, objecten en containers blijven gelden. Arrays hebben maximaal 128 elementen; indices blijven beperkt tot ±1.000.000. Test eigen projecten ook op de doelcomputer; validatie op een fysieke TT staat nog open.
