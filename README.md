@@ -65,7 +65,7 @@ The suites cover project creation, manifest round trips, file copying, collision
 
 ## Current scope
 
-- Text editor with code completion, native menus, project/import tree, properties and resizable output panels.
+- Text editor with code completion, native menus, project/import tree, properties and resizable output panels. Ordinary typing redraws affected lines; vertical scrolling reuses existing screen rows to reduce flicker.
 - Separate projects with a default MAIN.BAS entry point, editable source files and persistent .TBP manifests.
 - Integer, floating-point and string BASIC, Boolean logic, procedures, functions, typed fields and object references.
 - Up to 16 files, 256 lines per file and 2048 loaded source lines.

@@ -225,9 +225,46 @@ static void paint_completion(void)
     fill(x+2,y+2+n*ch,w-4,ch+3,8);
     text(x+6,y+2+(n+1)*ch-3,1,completion.item[completion_selected].detail,w-12);
 }
+static void paint_editor_line(int line,int y)
+{
+    char buf[100];
+    fill(editor_x,y,editor_w,ch,0);fill(editor_x,y,32,ch,8);
+    if(line>=lines)return;
+    if(debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path))
+        fill(editor_x+33,y,editor_w-33,ch,6);
+    if(line==row){
+        fill(editor_x+33,y,editor_w-33,ch,debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path)?6:8);
+        fill(editor_x+32,y,2,ch,4);
+    }
+    sprintf(buf,"%2d",line+1);
+    text(editor_x+4,y+ch-3,error_line==line+1?2:9,buf,28);
+    if(breakpoint_at(documents[active_document].path,line+1)>=0)fill(editor_x+1,y+ch/2-3,6,6,2);
+    code_line(line,y);
+    if(line==row)fill(editor_x+36+(col-leftcol)*cw,y+ch-2,cw,2,4);
+}
+static void paint_status(void)
+{
+    char buf[100];
+    fill(wx,wy+wh-22,ww,22,4);
+    sprintf(buf,"Ln %d : %d | %s",row+1,col+1,status);
+    text(wx+8,wy+wh-6,0,buf,ww-16);
+}
+static void paint_editor(int top,int bottom)
+{
+    int i,y;
+    for(i=0;i<rows;++i){y=editor_y+i*ch;
+        if(y<bottom && y+ch>top)paint_editor_line(first+i,y);
+    }
+    y=editor_y+rows*ch;
+    if(y<editor_y+editor_h && y<bottom){
+        fill(editor_x,y,editor_w,editor_y+editor_h-y,0);
+        fill(editor_x,y,32,editor_y+editor_h-y,8);
+    }
+    paint_completion();
+}
 static void paint(void)
 {
-    int i, y, line, bottom, panel;
+    int i, y, bottom, panel;
     char buf[100];
     layout(); bottom = wy + wh - output_height;
     fill(wx, wy, ww, wh, 8);
@@ -264,20 +301,7 @@ static void paint(void)
     text(editor_x + 8, wy + 58, 1, buf, editor_w - 16);
     fill(editor_x, editor_y, editor_w, editor_h, 0);
     fill(editor_x, editor_y, 32, editor_h, 8);
-    for (i = 0; i < rows && first + i < lines; ++i) {
-        line = first + i; y = editor_y + i * ch;
-        if(debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path))
-            fill(editor_x+33,y,editor_w-33,ch,6);
-        if (line == row) {
-            fill(editor_x + 33, y, editor_w - 33, ch, debug_paused && line+1==debug_row && path_equal(debug_path,documents[active_document].path)?6:8);
-            fill(editor_x + 32, y, 2, ch, 4);
-        }
-        sprintf(buf, "%2d", line + 1);
-        text(editor_x + 4, y + ch - 3, error_line == line + 1 ? 2 : 9, buf, 28);
-        if(breakpoint_at(documents[active_document].path,line+1)>=0)fill(editor_x+1,y+ch/2-3,6,6,2);
-        code_line(line, y);
-        if (line == row) fill(editor_x + 36 + (col - leftcol) * cw, y + ch - 2, cw, 2, 4);
-    }
+    for(i=0;i<rows && first+i<lines;++i)paint_editor_line(first+i,editor_y+i*ch);
     if (props) {
         panel = editor_x + editor_w + 6;
         if(debug_paused)paint_debug_panel(panel);else {
@@ -304,12 +328,10 @@ static void paint(void)
             text(editor_x + 7, y, error_line ? 2 : 1, output[i], ww - (editor_x - wx) - 20);
         if (!out_used) text(editor_x + 7, bottom + 24 + ch - 3, 9, tr(T_RUN_HINT), ww - (editor_x - wx) - 20);
     }
-    fill(wx, wy + wh - 22, ww, 22, 4);
-    sprintf(buf, "Ln %d : %d | %s", row + 1, col + 1, status);
-    text(wx + 8, wy + wh - 6, 0, buf, ww - 16);
+    paint_status();
     paint_completion();
 }
-static void redraw(int x, int y, int w, int h)
+static void redraw_part(int x, int y, int w, int h,int part)
 {
     int rx, ry, rw, rh, x1, y1, x2, y2, clip[4];
     wind_update(BEG_UPDATE); graf_mouse(M_OFF, 0L);
@@ -319,11 +341,42 @@ static void redraw(int x, int y, int w, int h)
         x2 = minimum(x + w, rx + rw); y2 = minimum(y + h, ry + rh);
         if (x1 < x2 && y1 < y2) {
             clip[0] = x1; clip[1] = y1; clip[2] = x2 - 1; clip[3] = y2 - 1;
-            vs_clip(vdi, 1, clip); paint();
+            vs_clip(vdi,1,clip);
+            if(part==1)paint_editor(y1,y2);
+            else if(part==2)paint_status();else paint();
         }
         wind_get(window, WF_NEXTXYWH, &rx, &ry, &rw, &rh);
     }
     vs_clip(vdi, 0, clip); graf_mouse(M_ON, 0L); wind_update(END_UPDATE);
+}
+static void redraw(int x,int y,int w,int h){redraw_part(x,y,w,h,0);}
+/* Only copy when the entire editor is visible: never copy pixels from
+   another window into an obscured part of our window. */
+static int scroll_editor(int delta)
+{
+    MFDB screen;int rx,ry,rw,rh,h,offset,p[8],clip[4],visible;
+    offset=(delta<0?-delta:delta)*ch;h=rows*ch-offset;
+    if(h<=0)return 0;
+    visible=0;wind_update(BEG_UPDATE);
+    wind_get(window,WF_FIRSTXYWH,&rx,&ry,&rw,&rh);
+    while(rw>0 && rh>0){
+        if(rx<=editor_x && ry<=editor_y && rx+rw>=editor_x+editor_w && ry+rh>=editor_y+rows*ch){visible=1;break;}
+        wind_get(window,WF_NEXTXYWH,&rx,&ry,&rw,&rh);
+    }
+    if(visible){
+        memset(&screen,0,sizeof(screen));
+        p[0]=p[4]=editor_x;p[2]=p[6]=editor_x+editor_w-1;
+        p[1]=editor_y+(delta>0?offset:0);p[5]=editor_y+(delta<0?offset:0);
+        p[3]=p[1]+h-1;p[7]=p[5]+h-1;
+        clip[0]=editor_x;clip[1]=editor_y;clip[2]=editor_x+editor_w-1;clip[3]=editor_y+rows*ch-1;
+        graf_mouse(M_OFF,0L);vs_clip(vdi,1,clip);vro_cpyfm(vdi,S_ONLY,p,&screen,&screen);
+        vs_clip(vdi,0,clip);graf_mouse(M_ON,0L);
+    }
+    wind_update(END_UPDATE);return visible;
+}
+static void redraw_line(int line)
+{
+    if(line>=first && line<first+rows)redraw_part(editor_x,editor_y+(line-first)*ch,editor_w,ch,1);
 }
 static void refresh(void)
 {
@@ -933,6 +986,36 @@ static void edit(int key, int state)
     if(!(state & 12) && (ascii=='.' || (was_completing &&
         ((ascii>=32 && ascii<127 && (isalnum(ascii) || ascii=='_')) || ascii==8))))start_completion();
 }
+static void edit_key(int key,int state)
+{
+    int old_row,old_first,old_left,old_lines,old_changed,old_completing,old_undo,old_document;
+    int scan,fast,delta,start;
+    scan=(key>>8)&255;
+    fast=!(state&12) && !(scan>=59 && scan<=68) && !(scan>=84 && scan<=93);
+    if((state&4) && scan==57)fast=1;
+    old_row=row;old_first=first;old_left=leftcol;old_lines=lines;old_changed=changed;
+    old_completing=completing;old_undo=undo_ready;old_document=active_document;
+    edit(key,state);
+    if(!fast || active_document!=old_document){refresh();return;}
+    layout();
+    if(old_undo!=undo_ready)menus_state(undo_ready,clipboard_ready,show_tree,props,show_output);
+    if(old_completing || completing || old_left!=leftcol){
+        redraw_part(editor_x,editor_y,editor_w,editor_h,1);
+    }else if(first!=old_first){
+        delta=first-old_first;
+        if(old_lines==lines && (scan==72 || scan==80 || scan==75 || scan==77) && scroll_editor(delta)){
+            start=delta>0?rows-delta:0;
+            redraw_part(editor_x,editor_y+start*ch,editor_w,(delta<0?-delta:delta)*ch,1);
+            redraw_line(old_row);redraw_line(row);
+        }else redraw_part(editor_x,editor_y,editor_w,editor_h,1);
+    }else if(old_lines!=lines){
+        start=maximum(first,minimum(old_row,row));
+        redraw_part(editor_x,editor_y+(start-first)*ch,editor_w,editor_h-(start-first)*ch,1);
+    }else {redraw_line(old_row);if(row!=old_row)redraw_line(row);}
+    redraw_part(wx,wy+wh-22,ww,22,2);
+    if(old_changed!=changed)redraw(editor_x,wy+40,editor_w,24);
+    if(props && (old_changed!=changed || old_lines!=lines))redraw(editor_x+editor_w+6,wy+40,132,editor_h+24);
+}
 int main(void)
 {
     int in[11], out[57], dx, dy, dw, dh, bw, bh, i;
@@ -1002,7 +1085,7 @@ int main(void)
             }
         }
         wind_get(window, WF_TOP, &top, &junk, &junk, &junk);
-        if ((events & MU_KEYBD) && top == window) { edit(key, ks); refresh(); }
+        if ((events & MU_KEYBD) && top == window) { edit_key(key,ks); }
         if ((events & MU_BUTTON) && wind_find(mx, my) == window) {
             completing=0;
             if (top != window) wind_set(window, WF_TOP, 0, 0, 0, 0);

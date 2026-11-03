@@ -15,6 +15,10 @@ Open `NUMBERS.TBP` for decimals, conversions, fractional loops and object array 
 - Completion and debugger support, numeric example and documentation in three languages.
 - MIDI output and Yamaha DX7 / Arturia demonstration carried forward from development version 0.9.
 
+## Display update
+
+Typing redraws affected editor rows and the status bar instead of clearing the whole IDE window. Vertical scrolling copies existing visible rows and draws exposed rows; obscured areas use clipped redraws. This reduces flicker during editing. Native checks compare typing, line split/merge, vertical/horizontal scrolling and completion dismissal with full redraws; all seven resulting PNG pairs are identical.
+
 ## Migration
 
 `/` now performs floating-point division; use `\` for integer division. Assigning fractions to Integer/Long requires an explicit conversion. CInt/CLng round ties to even; Fix truncates toward zero. Single and Double are reserved type names; rename methods named Double to DoubleValue. Keep a copy of old projects before migrating. Personal source files and IDE configuration are not automatically rewritten by the source installer.
