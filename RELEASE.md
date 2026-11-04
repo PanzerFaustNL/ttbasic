@@ -19,6 +19,10 @@ Open `NUMBERS.TBP` for decimals, conversions, fractional loops and object array 
 
 Typing redraws affected editor rows and the status bar instead of clearing the whole IDE window. Vertical scrolling copies existing visible rows and draws exposed rows; obscured areas use clipped redraws. This reduces flicker during editing. Native checks compare typing, line split/merge, vertical/horizontal scrolling and completion dismissal with full redraws; all seven resulting PNG pairs are identical.
 
+## Form and source views
+
+Ctrl+D switches between the designer and editable source, applying layout changes in memory while preserving handler bodies. F4 opens the selected event handler. During execution, Ctrl+Tab switches between the running form and read-only source; the Form toolbar button returns to the form. Source navigation and project-file browsing work while form values are retained. Stop execution before editing.
+
 ## Migration
 
 `/` now performs floating-point division; use `\` for integer division. Assigning fractions to Integer/Long requires an explicit conversion. CInt/CLng round ties to even; Fix truncates toward zero. Single and Double are reserved type names; rename methods named Double to DoubleValue. Keep a copy of old projects before migrating. Personal source files and IDE configuration are not automatically rewritten by the source installer.

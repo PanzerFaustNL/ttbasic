@@ -1,7 +1,7 @@
 /* ASCII translations for the original Atari system font. */
 #include "LANG.H"
 static int current_language;
-static char *labels[3][140] = {
+static char *labels[3][143] = {
 {
 " Bestand ",
 " Bewerken ",
@@ -122,7 +122,7 @@ static char *labels[3][140] = {
 "Toepassen",
 "Testen",
 "Ongedaan",
-"Eventcode",
+"Code Ctrl+D",
 "EIGENSCHAPPEN",
 "Naam",
 "Tekst / titel",
@@ -134,15 +134,18 @@ static char *labels[3][140] = {
 "Zichtbaar",
 "Aangevinkt",
 "Wissen",
-"Sleep: verplaatsen | Shift+pijl: grootte | F4: code",
+"Ctrl+D: code | F4: event | Shift+pijl: grootte",
 "[2][Dit startbestand is geen ontwerperformulier.|Je broncode wordt behouden.|Een nieuw formulierproject maken?][Nieuw|Annuleren]",
 "[2][Het formulier is gewijzigd.|Wijzigingen toepassen?][Toepassen|Verwerpen|Terug]",
 "[1][Formulier: %.76s][OK]",
-"[1][Kies een gereedschap en klik op het formulier.|Sleep een element; rechtsonder: grootte.|Pijlen: verplaatsen; Shift+pijl: grootte.|Ctrl+pijl: schuiven; Ctrl+Z: ongedaan.|F4: eventcode; F5: testen; Ctrl+S: opslaan.][OK]",
+"[1][Kies gereedschap en klik in de vorm.|Sleep element; hoek: grootte wijzigen.|Pijlen: bewegen; Shift+pijl: grootte.|Ctrl+pijl: schuiven; Ctrl+Z: ongedaan.|Ctrl+D: code; F4: event; F5: testen.][OK]",
 "Formulier toegepast | F2 Opslaan F5 Uitvoeren",
 "[1][Dit element heeft geen event.][OK]",
 "Ctrl+pijl of de pijltjes: formulier verschuiven",
-"  DX7 MIDI-demo openen"
+"  DX7 MIDI-demo openen",
+"Formulier",
+"Pauzeren",
+"Draait | code alleen-lezen | Ctrl+Tab: formulier"
 },
 {
 " File ",
@@ -264,7 +267,7 @@ static char *labels[3][140] = {
 "Apply",
 "Test",
 "Undo",
-"Event code",
+"Code Ctrl+D",
 "PROPERTIES",
 "Name",
 "Text / title",
@@ -276,15 +279,18 @@ static char *labels[3][140] = {
 "Visible",
 "Checked",
 "Delete",
-"Drag: move | Shift+arrow: resize | F4: code",
+"Ctrl+D: code | F4: event | Shift+arrow: resize",
 "[2][The entry source is not a designer form.|Your source will be preserved.|Create a new form project?][New|Cancel]",
 "[2][The form has changed.|Apply the changes?][Apply|Discard|Back]",
 "[1][Form: %.76s][OK]",
-"[1][Choose a tool and click on the form.|Drag a control; bottom-right: resize.|Arrows: move; Shift+arrow: resize.|Ctrl+arrow: pan; Ctrl+Z: undo.|F4: event code; F5: test; Ctrl+S: save.][OK]",
+"[1][Choose a tool and click on the form.|Drag a control; corner: resize.|Arrows: move; Shift+arrow: resize.|Ctrl+arrow: pan; Ctrl+Z: undo.|Ctrl+D: code; F4: event; F5: test.][OK]",
 "Form applied | F2 Save F5 Run",
 "[1][This control has no event.][OK]",
 "Ctrl+arrow or the arrow buttons: pan the form",
-"  Open DX7 MIDI demo"
+"  Open DX7 MIDI demo",
+"Form",
+"Pause",
+"Running | code read-only | Ctrl+Tab: form"
 },
 {
 " Datei ",
@@ -406,7 +412,7 @@ static char *labels[3][140] = {
 "Anwenden",
 "Testen",
 "Zurueck",
-"Ereignis",
+"Code Strg+D",
 "EIGENSCHAFTEN",
 "Name",
 "Text / Titel",
@@ -418,15 +424,18 @@ static char *labels[3][140] = {
 "Sichtbar",
 "Markiert",
 "Loeschen",
-"Ziehen: bewegen | Shift+Pfeil: Groesse | F4: Code",
+"Strg+D: Code | F4: Event | Shift+Pfeil: Groesse",
 "[2][Die Startdatei ist kein Entwurfsformular.|Ihr Quellcode bleibt erhalten.|Ein neues Formularprojekt erstellen?][Neu|Abbrechen]",
 "[2][Das Formular wurde geaendert.|Aenderungen anwenden?][Anwenden|Verwerfen|Zurueck]",
 "[1][Formular: %.76s][OK]",
-"[1][Werkzeug waehlen und Formular anklicken.|Element ziehen; unten rechts: Groesse.|Pfeile: bewegen; Shift+Pfeil: Groesse.|Strg+Pfeil: verschieben; Strg+Z: zurueck.|F4: Code; F5: testen; Strg+S: speichern.][OK]",
+"[1][Werkzeug waehlen und Formular anklicken.|Element ziehen; rechte Ecke: Groesse.|Pfeile: bewegen; Shift+Pfeil: Groesse.|Strg+Pfeil: schieben; Strg+Z: zurueck.|Strg+D: Code; F4: Event; F5: testen.][OK]",
 "Formular angewandt | F2 Speichern F5 Start",
 "[1][Dieses Element hat kein Ereignis.][OK]",
 "Strg+Pfeil oder Pfeiltasten: Ansicht verschieben",
-"  DX7 MIDI-Demo oeffnen"
+"  DX7 MIDI-Demo oeffnen",
+"Formular",
+"Pause",
+"Laeuft | Code schreibgeschuetzt | Strg+Tab: Formular"
 }
 };
 char *tr(int key) { return labels[current_language][key]; }

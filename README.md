@@ -28,7 +28,7 @@ Output: `42`, `2`. The imported [Counter class](examples/COUNTER.BAS) has a priv
 
 Start `C:\TTBASIC\TTBASIC.PRG` in TT Medium, or at least 640 × 480. Press F5 to run the project from MAIN.BAS. Imported modules appear in the project tree and can be edited directly. Runs use unsaved in-memory sources; F2 saves the active file and keeps a `.BAK` of its previous disk contents. File → New project (Ctrl+N), Open project (Ctrl+O), New file (F7), Add existing file (Ctrl+F7) and Save all (Ctrl+Shift+S) manage project work.
 
-Load examples with **Project → Load language example**, **Load polymorphism example**, **Load input example**, or **Load OO example**. Press Escape to stop a running program. In the initial Dutch UI this is **Project → OO-voorbeeld laden**. Choose the UI language under **Beeld / View / Ansicht → Nederlands / English / Deutsch**.
+Load examples with **Project → Load language example**, **Load polymorphism example**, **Load input example**, or **Load OO example**. Ctrl+D switches between a managed form design and source. While a form runs, Ctrl+Tab switches between the form and read-only source; the Form toolbar button returns to the form. Press Escape to stop a running program. In the initial Dutch UI this is **Project → OO-voorbeeld laden**. Choose the UI language under **Beeld / View / Ansicht → Nederlands / English / Deutsch**.
 
 ## Building on the Atari
 

@@ -204,7 +204,7 @@ void menus_debug(int running,int paused)
         if(running)enabled=i==ACT_RUN || i==ACT_QUIT || i==ACT_STOP || i==ACT_PAUSE || i==ACT_TREE || i==ACT_OUTPUT || i==ACT_PROPS || i==ACT_BREAKPOINT || i==ACT_INSPECT || i==ACT_STEP || i==ACT_OVER || i==ACT_OUT;
         if(i==ACT_STOP || i==ACT_PAUSE)enabled=running;
         if(i==ACT_INSPECT || i==ACT_OVER || i==ACT_OUT)enabled=paused;
-        if(running && !paused && (i==ACT_RUN || i==ACT_STEP || i==ACT_BREAKPOINT))enabled=0;
+        if(running && !paused && (i==ACT_RUN || i==ACT_STEP))enabled=0;
         if(!running && (i==ACT_UNDO || i==ACT_PASTE))continue;
         menu_ienable(menu,items[i],enabled);
     }

@@ -11,13 +11,14 @@ typedef struct {
     char text[128],pattern[65];TEDINFO field;
 } Control;
 typedef struct {
-    int used,id,handle,open,x,y,w,h;
+    int used,id,handle,open,x,y,w,h,last_focus;
     OBJECT tree[GUI_LIMIT+1];int ids[GUI_LIMIT+1],count;
 } Form;
 static Control controls[GUI_LIMIT];
 static Form forms[WINDOWS];
 static int focus=-1,edit_index,events[32][2],head,tail,overflow;
 static GemService host_service;
+static int host_window,last_form;
 static Form *parent_form(int id)
 {
     int i;if(id<0 || id>=GUI_LIMIT || !controls[id].used)return 0;
@@ -43,7 +44,7 @@ static void focus_control(int id)
     focus=-1;
     if(id<0 || !controls[id].used || controls[id].kind!=GUI_TEXTBOX || !controls[id].enabled || !controls[id].visible)return;
     f=parent_form(id);if(!f || !f->open)return;
-    focus=id;edit_index=strlen(controls[id].text);objc_edit(f->tree,controls[id].object,0,&edit_index,ED_INIT);
+    focus=id;f->last_focus=id;edit_index=strlen(controls[id].text);objc_edit(f->tree,controls[id].object,0,&edit_index,ED_INIT);
 }
 static void build(Form *f)
 {
@@ -96,14 +97,14 @@ static void close_form(Form *f,int event)
     wind_close(f->handle);f->open=0;controls[f->id].visible=0;
     if(event)queue_event(f->id,GUI_CLOSED);
 }
-void gemrun_init(int vdi,int ide,GemService service){(void)vdi;(void)ide;host_service=service;}
+void gemrun_init(int vdi,int ide,GemService service){(void)vdi;host_window=ide;last_form=-1;host_service=service;}
 int gemrun_message(int *m)
 {
     int i;Form *f;
     for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].handle==m[3]){
         f=&forms[i];
         if(m[0]==WM_REDRAW)paint(f,m[4],m[5],m[6],m[7]);
-        else if(m[0]==WM_TOPPED){wind_set(f->handle,WF_TOP,0,0,0,0);repaint(f);}
+        else if(m[0]==WM_TOPPED)gemrun_top(f->handle);
         else if(m[0]==WM_MOVED){f->x=m[4];f->y=m[5];wind_set(f->handle,WF_CURRXYWH,m[4],m[5],m[6],m[7]);repaint(f);}
         else if(m[0]==WM_CLOSED)close_form(f,1);
         else return 0;
@@ -119,7 +120,7 @@ static void next_focus(Form *f,int reverse)
 }
 static int next_event(BasicGuiRequest *r)
 {
-    int i,open,m[8],e,mx,my,mb,ks,key,clicks,top,junk,id,n,inside;Form *f;Control *c;char before[128];
+    int i,open,m[8],e,mx,my,mb,ks,key,clicks,top,junk,id,n,inside,handled;Form *f;Control *c;char before[128];
     while(1){
         if(overflow)return error(r,"GEM event queue is full");
         if(head!=tail){r->id=events[head][0];r->event=events[head][1];head=(head+1)%32;return 1;}
@@ -127,7 +128,9 @@ static int next_event(BasicGuiRequest *r)
         memset(m,0,sizeof(m));key=ks=0;
         e=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON|MU_TIMER,1,1,1,0,0,0,0,0,0,0,0,0,0,m,20,0,&mx,&my,&mb,&ks,&key,&clicks);
         if((e & MU_KEYBD) && (key & 255)==27)return error(r,"Execution cancelled");
-        if(host_service && !host_service((e & MU_MESAG)?m:0,(e & MU_KEYBD)?key:0,ks))return error(r,"Execution cancelled");
+        handled=host_service?host_service((e & MU_MESAG)?m:0,(e & MU_KEYBD)?key:0,ks,mx,my,(e & MU_BUTTON)?mb:0):1;
+        if(!handled)return error(r,"Execution cancelled");
+        if(handled>1)e&=~MU_KEYBD;
         if(e & MU_MESAG)gemrun_message(m);
         wind_get(0,WF_TOP,&top,&junk,&junk,&junk);f=0;
         for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].open && forms[i].handle==top)f=&forms[i];
@@ -143,7 +146,7 @@ static int next_event(BasicGuiRequest *r)
         if(e & MU_BUTTON){
             i=wind_find(mx,my);f=0;for(n=0;n<WINDOWS;++n)if(forms[n].used && forms[n].open && forms[n].handle==i)f=&forms[n];
             if(f){
-                if(top!=f->handle){wind_set(f->handle,WF_TOP,0,0,0,0);repaint(f);}
+                if(top!=f->handle)gemrun_top(f->handle);
                 else{
                     n=objc_find(f->tree,0,8,mx,my);id=n>0 && n<f->count?f->ids[n]:-1;
                     if(id>=0 && controls[id].enabled && controls[id].visible){
@@ -182,7 +185,7 @@ int gemrun_request(BasicGuiRequest *r)
             if(bw>w || bh>h)return error(r,"Window is larger than the desktop");
             f->x=x+(w-bw)/2;f->y=y+(h-bh)/2;f->w=bw;f->h=bh;
             f->handle=wind_create(WKIND,x,y,w,h);if(f->handle<0)return error(r,"Cannot create GEM window");
-            f->used=1;f->id=r->id;
+            f->used=1;f->id=r->id;f->last_focus=-1;
         }else{
             f=parent_form(r->parent);if(!f || controls[r->parent].kind!=GUI_WINDOW)return error(r,"Control requires a Window parent");
             if(r->width<16 || r->height<16 || r->x+r->width>controls[r->parent].w || r->y+r->height>controls[r->parent].h)return error(r,"Control does not fit inside Window");
@@ -225,6 +228,20 @@ int gemrun_request(BasicGuiRequest *r)
 void gemrun_top(int handle)
 {
     int i;for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].open && forms[i].handle==handle){
-        wind_set(handle,WF_TOP,0,0,0,0);repaint(&forms[i]);return;
+        focus_control(-1);wind_set(handle,WF_TOP,0,0,0,0);last_form=handle;repaint(&forms[i]);
+        if(forms[i].last_focus>=0)focus_control(forms[i].last_focus);else next_focus(&forms[i],0);return;
     }
+}
+
+void gemrun_code(void)
+{
+    Form *f;f=parent_form(focus);if(f && f->open)last_form=f->handle;
+    focus_control(-1);wind_set(host_window,WF_TOP,0,0,0,0);
+}
+void gemrun_switch_view(void)
+{
+    int top,junk,i;wind_get(0,WF_TOP,&top,&junk,&junk,&junk);
+    if(top!=host_window){gemrun_code();return;}
+    for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].open && forms[i].handle==last_form){gemrun_top(last_form);return;}
+    for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].open){gemrun_top(forms[i].handle);return;}
 }

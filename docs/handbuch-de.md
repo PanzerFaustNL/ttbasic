@@ -659,7 +659,8 @@ Das Beispiel **C:\TTBASIC\DESIGN.TBP** oeffnen und Strg+D druecken. Begruessungs
 | Grosses Formular verschieben | Strg+Pfeil oder die vier linken Pfeilschaltflaechen |
 | Element loeschen | Delete oder Loeschen |
 | Letzte Entwurfsaenderung zurueck / wiederherstellen | Strg+Z oder Zurueck |
-| Ereigniscode oeffnen | F4 oder Ereignis |
+| Zwischen Quellcode und Entwurf wechseln | Strg+D oder Code im Entwurf |
+| Ereigniscode oeffnen | F4 fuer das ausgewaehlte Element |
 | Anwenden und speichern | F2 oder Strg+S |
 | Anwenden und testen | F5 oder Testen |
 | Entwurf verlassen | Abbrechen/Escape; geaenderte Entwuerfe anwenden oder verwerfen |
@@ -684,6 +685,13 @@ Der Entwurf steht mit dem BASIC-Code in MAIN.BAS; eine separate Ressourcendatei 
 ### Grenzen
 
 Die erste Version verwaltet ein Formular in der Startdatei des Projekts mit maximal sechzehn Elementen. Breite 120–600, Hoehe 64–400 Pixel; alle Elemente muessen hineinpassen. Textgrenzen und maximal 256 Quellzeilen gelten auch fuer Layout und Handler. Bei Erzeugungsfehlern bleibt die Quelle erhalten; der Entwurf kann angepasst werden. Haltepunkte nach Layoutaenderungen kontrollieren: sie verwenden physische Zeilennummern. Mehrfachauswahl, automatische Refaktorierung eigenen Codes und das Einlesen beliebiger handgeschriebener GUI-Layouts fehlen noch.
+
+
+### Zwischen Formular und Code wechseln
+
+Im Entwurf wechselt **Strg+D** zum Quellcode; dieselbe Taste im Editor oeffnet den Entwurf erneut. Auch **Code** wechselt zum Quellcode. Entwurfsaenderungen werden im Arbeitsspeicher angewandt; bestehende Ereignisroutinen bleiben erhalten. Mit F2 speichern. F4 oeffnet die Ereignisroutine des ausgewaehlten Elements.
+
+Bei einem laufenden Formular wechselt **Strg+Tab** zwischen Formular und Code. Die Schaltflaeche **Formular** kehrt zum Formular zurueck. Quellcode durchsuchen und Projektdateien auswaehlen ist moeglich; waehrend der Ausfuehrung ist der Code schreibgeschuetzt. Formularwerte bleiben erhalten, das Programm laeuft weiter. Vor dem Bearbeiten mit Stop/Escape beenden. Pause und Haltepunkte verwenden den vorhandenen Debugger.
 
 ## 19. MIDI und Yamaha-DX7-Demo (0.9)
 

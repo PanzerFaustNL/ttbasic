@@ -140,6 +140,9 @@
 #define T_F_NOEVENT 137
 #define T_F_PAN 138
 #define T_M_DX7DEMO 139
+#define T_VIEW_FORM 140
+#define T_VIEW_PAUSE 141
+#define T_VIEW_RUNNING 142
 char *tr(int key);
 int language_get(void);
 void language_set(int language);

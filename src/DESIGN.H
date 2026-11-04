@@ -5,6 +5,7 @@
 #define DESIGN_CODE 2
 #define DESIGN_RUN 3
 #define DESIGN_SAVE 4
+#define DESIGN_SOURCE 5
 typedef void (*DesignHost)(int *message);
 int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost host,char *handler);
 #endif

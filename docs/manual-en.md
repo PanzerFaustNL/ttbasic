@@ -659,7 +659,8 @@ Open **C:\TTBASIC\DESIGN.TBP** for a complete example, then Ctrl+D. Its greeting
 | Pan a large form | Ctrl+arrow or the four left arrow buttons |
 | Delete control | Delete key or Delete button |
 | Undo / restore last design change | Ctrl+Z or Undo |
-| Open event code | F4 or Event code |
+| Switch source / design | Ctrl+D, or the Code button in the designer |
+| Open event code | F4 on the selected item |
 | Apply and save | F2 or Ctrl+S |
 | Apply and test | F5 or Test |
 | Leave designer | Cancel or Escape; changed designs can be applied or discarded |
@@ -684,6 +685,13 @@ The design lives inside MAIN.BAS alongside BASIC code; no separate resource file
 ### Limits
 
 The initial designer manages one form in the project's entry source, with up to sixteen controls. Form sizes range from 120–600 pixels wide and 64–400 high; controls must fit inside it. Existing text limits and the 256-line source limit apply to generated layout plus handlers. Generation failures preserve the original source and allow you to revise the design. Review breakpoints after layout edits: they still use physical line numbers. Multiple selection, automatic refactoring of user code and importing arbitrary handwritten GUI layouts are not included yet.
+
+
+### Switching between form and code
+
+In the designer, **Ctrl+D** switches to source; use the same shortcut in the editor to reopen the design. The **Code** button also switches to source. Design changes are applied in memory and existing handlers are preserved; use F2 to save. F4 opens the selected control event handler.
+
+While a form is running, **Ctrl+Tab** switches between form and code. The **Form** toolbar button returns to the form. Browse the source and select project files; source is read-only during execution. Form values are retained and the program keeps running. Use Stop/Escape before editing source. Pause and breakpoints use the existing debugger.
 
 ## 19. MIDI and the Yamaha DX7 demo (0.9)
 

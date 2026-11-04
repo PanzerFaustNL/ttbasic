@@ -34,7 +34,8 @@ static int breakpoint_at(char *path,int line);
 static void toggle_breakpoint(void);
 static void paint_debug_panel(int panel);
 static int debug_hook(char *path,int line,int depth,int reason);
-static int runtime_service(int *message,int key,int state);
+static int runtime_service(int *message,int key,int state,int mx,int my,int button);
+static void edit_key(int key,int state);
 static int show_tree = 1, show_output = 1, tree_expanded = 1;
 static int undo_ready, undo_row, undo_col, undo_lines, undo_changed;
 static char undo_source[MAX_LINES][LINE_LEN];
@@ -268,9 +269,9 @@ static void paint(void)
     char buf[100];
     layout(); bottom = wy + wh - output_height;
     fill(wx, wy, ww, wh, 8);
-    button(wx + 6, 94, tr(debug_paused?T_CONTINUE:T_LOAD_BUTTON), 0);
-    button(wx + 106, 112, tr(debug_paused?T_STEP_BUTTON:T_SAVE_BUTTON), 0);
-    button(wx + 224, 136, tr(debug_paused?T_STOP_BUTTON:T_RUN_BUTTON), 1);
+    button(wx + 6, 94, tr(debug_paused?T_CONTINUE:debug_running?T_VIEW_FORM:T_LOAD_BUTTON), 0);
+    button(wx + 106, 112, tr(debug_paused?T_STEP_BUTTON:debug_running?T_VIEW_PAUSE:T_SAVE_BUTTON), 0);
+    button(wx + 224, 136, tr(debug_running?T_STOP_BUTTON:T_RUN_BUTTON), 1);
     text(wx + 376, wy + 22, 1, "TT BASIC Studio", ww - 388);
     fill(wx, wy + 35, ww, 1, 9);
     if (show_tree) {
@@ -521,9 +522,10 @@ static void debug_command(int command,int state)
     else if(command==ACT_INSPECT)inspect_variable(debug_first);
     else if(command==ACT_TREE || command==ACT_PROPS || command==ACT_OUTPUT)action(command);
 }
-static int runtime_service(int *m,int key,int state)
+static int runtime_service(int *m,int key,int state,int mx,int my,int button)
 {
-    int command,scan;scan=(key>>8)&255;
+    int command,scan,top,junk,index,handled;scan=(key>>8)&255;handled=0;
+    if(key && (state&4) && scan==15){gemrun_switch_view();strcpy(status,tr(T_VIEW_RUNNING));refresh();return 2;}
     if(key && (key & 255)==27){debug_stop=1;return 0;}
     if(key && ((state & 4) && scan==25)){debug_mode=1;strcpy(status,tr(T_M_PAUSE));refresh();}
     if(m){
@@ -531,14 +533,36 @@ static int runtime_service(int *m,int key,int state)
             command=menus_event(m[3],m[4]);
             if(command==ACT_QUIT || command==ACT_STOP){debug_stop=1;return 0;}
             if(command==ACT_PAUSE){debug_mode=1;strcpy(status,tr(T_M_PAUSE));refresh();}
+            if(command==ACT_BREAKPOINT){toggle_breakpoint();refresh();}
+            if(command==ACT_TREE || command==ACT_PROPS || command==ACT_OUTPUT){action(command);refresh();}
         }else if(m[3]==window){
             if(m[0]==WM_CLOSED){debug_stop=1;return 0;}
             if(m[0]==WM_REDRAW)redraw(m[4],m[5],m[6],m[7]);
-            else if(m[0]==WM_TOPPED)wind_set(window,WF_TOP,0,0,0,0);
+            else if(m[0]==WM_TOPPED){gemrun_code();strcpy(status,tr(T_VIEW_RUNNING));refresh();}
             else if(m[0]==WM_MOVED){wind_set(window,WF_CURRXYWH,m[4],m[5],m[6],m[7]);refresh();}
         }
     }
-    return !debug_stop;
+    if(!debug_paused && (key || (button&1))){
+        wind_get(0,WF_TOP,&top,&junk,&junk,&junk);
+        if((button&1) && wind_find(mx,my)==window){
+            gemrun_code();layout();handled=1;
+            if(my>=wy+5 && my<wy+29){
+                if(mx>=wx+6 && mx<wx+100)gemrun_switch_view();
+                else if(mx>=wx+106 && mx<wx+218){debug_mode=1;strcpy(status,tr(T_M_PAUSE));refresh();return 2;}
+                else if(mx>=wx+224 && mx<wx+360){debug_stop=1;return 0;}
+            }else if(show_tree && tree_expanded && mx>=wx+6 && mx<wx+124 && my>=wy+119 && my<wy+119+tree_rows*18){
+                index=tree_first+(my-wy-119)/18;if(index<tree_count)open_path(tree_paths[index]);
+            }else if(mx>=editor_x && mx<editor_x+editor_w && my>=editor_y && my<editor_y+editor_h){
+                index=first+(my-editor_y)/ch;if(index<lines){row=index;col=minimum(strlen(source[row]),maximum(0,(mx-editor_x-36)/cw)+leftcol);if(mx<editor_x+32)toggle_breakpoint();}
+            }
+            strcpy(status,tr(T_VIEW_RUNNING));refresh();
+        }else if(key && top==window){
+            handled=1;strcpy(status,tr(T_VIEW_RUNNING));
+            if(scan==72 || scan==80 || scan==75 || scan==77 || scan==71)edit_key(key,0);
+            else if(scan==67){toggle_breakpoint();refresh();}
+        }
+    }
+    return debug_stop?0:handled?2:1;
 }
 static int debug_hook(char *path,int line,int depth,int reason)
 {
@@ -559,11 +583,12 @@ static int debug_hook(char *path,int line,int depth,int reason)
         events=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON,1,1,1,0,0,0,0,0,0,0,0,0,0,m,0,0,&mx,&my,&mb,&state,&key,&clicks);
         if(events & MU_MESAG){
             if(m[0]==MN_SELECTED)debug_command(menus_event(m[3],m[4]),0);
-            else if(!gemrun_message(m))runtime_service(m,0,0);
+            else if(!gemrun_message(m))runtime_service(m,0,0,0,0,0);
         }
         if(events & MU_KEYBD){
             scan=(key>>8)&255;if(scan>=84 && scan<=93)scan-=25;command=0;
-            if((key & 255)==27)command=ACT_STOP;
+            if((state&4) && scan==15)gemrun_switch_view();
+            else if((key & 255)==27)command=ACT_STOP;
             else if(scan==63)command=ACT_RUN;
             else if(scan==66)command=ACT_STEP;
             else if(scan==67)command=ACT_BREAKPOINT;
@@ -603,7 +628,7 @@ static int runtime_poll(void)
     events=evnt_multi(MU_KEYBD|MU_TIMER|MU_MESAG,0,0,0,
         0,0,0,0,0,0,0,0,0,0,message,1,0,&mx,&my,&mb,&ks,&key,&clicks);
     if((events & MU_MESAG) && gemrun_message(message))events&=~MU_MESAG;
-    return runtime_service((events & MU_MESAG)?message:0,(events & MU_KEYBD)?key:0,ks);
+    return runtime_service((events & MU_MESAG)?message:0,(events & MU_KEYBD)?key:0,ks,0,0,0);
 }
 static void run_source(void)
 {
@@ -782,7 +807,7 @@ static void edit_form(int create)
 {
     static FormModel model;
     static char generated[MAX_LINES][LINE_LEN];
-    char previous_project[BASIC_PATH],handler[FORM_NAME],message[128];int found,result,count,line,new_form,i,different;
+    char previous_project[BASIC_PATH],handler[FORM_NAME],message[128];int found,result,count,line,new_form,i,different,saved_row,saved_col,saved_first,saved_left;
     cache_current();new_form=create;
     if(!create){
         found=form_read(documents[0].text,documents[0].count,&model);
@@ -795,6 +820,7 @@ static void edit_form(int create)
         form_default(&model);
     }
     cache_current();if(active_document)activate_document(0);completing=0;
+    saved_row=row;saved_col=col;saved_first=first;saved_left=leftcol;
     while(1){
         result=designer_edit(&model,vdi,window,document_name(),designer_host,handler);
         if(!result){refresh();return;}
@@ -806,6 +832,7 @@ static void edit_form(int create)
         if(different){remember();memcpy(source,generated,sizeof(source));lines=count;changed=1;scan_files();}
         row=col=first=leftcol=error_line=0;
         strcpy(status,tr(T_F_APPLIED));
+        if(result==DESIGN_SOURCE){row=minimum(saved_row,lines-1);col=minimum(saved_col,strlen(source[row]));first=minimum(saved_first,lines-1);leftcol=saved_left;}
         if(result==DESIGN_CODE){line=form_handler_line(source,lines,handler);if(line>=0){row=minimum(lines-1,line+1);col=strlen(source[row]);}}
         if(result==DESIGN_SAVE)save_source();
         refresh();if(result==DESIGN_RUN){debug_mode=0;run_source();refresh();}return;

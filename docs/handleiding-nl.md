@@ -659,7 +659,8 @@ Een bestaand voorbeeld staat in **C:\TTBASIC\DESIGN.TBP**. Open dat project en d
 | Groot formulier bekijken | Ctrl+pijl of de vier pijltjes links |
 | Element verwijderen | Delete of Wissen |
 | Laatste ontwerpwijziging ongedaan / terugzetten | Ctrl+Z of Ongedaan |
-| Eventcode openen | F4 of Eventcode |
+| Broncode / ontwerp wisselen | Ctrl+D, of de knop Code in de ontwerper |
+| Eventcode openen | F4 op het geselecteerde element |
 | Toepassen en opslaan | F2 of Ctrl+S |
 | Toepassen en testen | F5 of Testen |
 | Ontwerper verlaten | Annuleren of Escape; bij wijzigingen kun je toepassen of verwerpen |
@@ -684,6 +685,13 @@ Het formulier staat samen met de BASIC-code in MAIN.BAS; er is geen apart resour
 ### Grenzen
 
 De eerste ontwerper beheert één formulier in het startbestand van een project, met maximaal zestien bedieningselementen. Formaat: 120–600 pixels breed en 64–400 hoog; elementen moeten daarbinnen passen. De bestaande tekstlimieten en bronlimiet van 256 regels gelden ook voor gegenereerde code en handlers. Bij overschrijding blijft de oorspronkelijke bron intact en kun je het ontwerp aanpassen. Controleer breakpoints na layoutwijzigingen: die gebruiken nog fysieke regelnummers. Er is nog geen meervoudige selectie, automatische refactoring van eigen code of import van willekeurige handgeschreven GUI-layouts.
+
+
+### Wisselen tussen formulier en code
+
+In de ontwerper wisselt **Ctrl+D** naar de broncode; dezelfde toets opent vanuit de code het ontwerp opnieuw. De knop **Code** doet hetzelfde. Ontwerpwijzigingen worden in het werkgeheugen toegepast en bestaande eventcode blijft behouden; opslaan doe je met F2. F4 gaat naar de eventhandler van het geselecteerde element.
+
+Tijdens een draaiend formulier wissel je met **Ctrl+Tab** tussen het formulier en de code. De knop **Formulier** boven de code brengt het formulier terug. Je kunt in de code bladeren en projectbestanden kiezen; de code is tijdens uitvoeren alleen-lezen. Formulierwaarden blijven behouden en het programma blijft draaien. Gebruik Stop/Escape om te stoppen voordat je broncode wijzigt. Pauzeren en breakpoints gebruiken de bestaande debugger.
 
 ## 19. MIDI en Yamaha DX7-demo (0.9)
 

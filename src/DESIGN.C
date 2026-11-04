@@ -210,14 +210,14 @@ static void resize_form(void)
     sprintf(value,"%d",h);if(!form_set(&work,-1,FORM_HEIGHT,value)){work=before;error_dialog();return;}
     if(memcmp(&work,&before,sizeof(work)))remember();
 }
-static int mouse(int mx,int my,char *handler)
+static int mouse(int mx,int my)
 {
-    int i,property,x,y,result;
+    int i,property,x,y;
     if(my>=wy+6 && my<wy+30){
         if(mx<wx+96)return DESIGN_APPLY;
         if(mx<wx+192)return cancel();
         if(mx<wx+288)return DESIGN_RUN;
-        if(mx<wx+384)undo();else if(mx<wx+494){result=code_handler(handler);return result?result:-1;}
+        if(mx<wx+384)undo();else if(mx<wx+494)return DESIGN_SOURCE;
         return -1;
     }
     if(mx>=wx+6 && mx<wx+102){
@@ -272,7 +272,8 @@ int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost 
         }
         if(e & MU_KEYBD){
             scan=(key>>8)&255;if(scan>=84 && scan<=93)scan-=25;
-            if((key & 255)==27)result=cancel();
+            if((ks & 4) && scan==32)result=DESIGN_SOURCE;
+            else if((key & 255)==27)result=cancel();
             else if(scan==59)form_alert(1,tr(T_F_HELP));
             else if(scan==60)result=DESIGN_SAVE;
             else if(scan==62)result=code_handler(handler)?DESIGN_CODE:-1;
@@ -283,7 +284,7 @@ int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost 
             else if(scan==72 || scan==80 || scan==75 || scan==77)move_key(scan,ks);
             refresh();
         }
-        if(result<0 && (e & MU_BUTTON) && wind_find(mx,my)==window){result=mouse(mx,my,handler);refresh();evnt_button(1,1,0,&mx,&my,&mb,&ks);}
+        if(result<0 && (e & MU_BUTTON) && wind_find(mx,my)==window){result=mouse(mx,my);refresh();evnt_button(1,1,0,&mx,&my,&mb,&ks);}
     }
     if(result)*model=work;
     wind_close(window);wind_delete(window);menus_modal(0);wind_set(parent,WF_TOP,0,0,0,0);return result;
