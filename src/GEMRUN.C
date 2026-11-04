@@ -19,6 +19,11 @@ static Form forms[WINDOWS];
 static int focus=-1,edit_index,events[32][2],head,tail,overflow;
 static GemService host_service;
 static int host_window,last_form;
+static void top_window(int handle)
+{
+    int top,junk;wind_get(0,WF_TOP,&top,&junk,&junk,&junk);
+    if(top!=handle)wind_set(handle,WF_TOP,0,0,0,0);
+}
 static Form *parent_form(int id)
 {
     int i;if(id<0 || id>=GUI_LIMIT || !controls[id].used)return 0;
@@ -201,7 +206,7 @@ int gemrun_request(BasicGuiRequest *r)
     if(r->operation==GUI_SHOW){
         if(!f || c->kind!=GUI_WINDOW)return error(r,"Show requires a Window");
         if(!f->open){wind_open(f->handle,f->x,f->y,f->w,f->h);f->open=1;c->visible=1;repaint(f);next_focus(f,0);queue_event(r->id,GUI_LOAD);}
-        else wind_set(f->handle,WF_TOP,0,0,0,0);return 1;
+        else top_window(f->handle);return 1;
     }
     if(r->operation==GUI_CLOSE){close_form(f,1);return 1;}
     if(r->operation!=GUI_GET && r->operation!=GUI_SET)return error(r,"Unknown GEM operation");
@@ -228,7 +233,7 @@ int gemrun_request(BasicGuiRequest *r)
 void gemrun_top(int handle)
 {
     int i;for(i=0;i<WINDOWS;++i)if(forms[i].used && forms[i].open && forms[i].handle==handle){
-        focus_control(-1);wind_set(handle,WF_TOP,0,0,0,0);last_form=handle;repaint(&forms[i]);
+        focus_control(-1);top_window(handle);last_form=handle;repaint(&forms[i]);
         if(forms[i].last_focus>=0)focus_control(forms[i].last_focus);else next_focus(&forms[i],0);return;
     }
 }
@@ -236,7 +241,7 @@ void gemrun_top(int handle)
 void gemrun_code(void)
 {
     Form *f;f=parent_form(focus);if(f && f->open)last_form=f->handle;
-    focus_control(-1);wind_set(host_window,WF_TOP,0,0,0,0);
+    focus_control(-1);top_window(host_window);
 }
 void gemrun_switch_view(void)
 {

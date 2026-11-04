@@ -40,6 +40,10 @@
 #define ACT_FORM_EDIT 37
 #define ACT_FORM_NEW 38
 #define ACT_DX7DEMO 39
+/* Shared Ctrl+D edge across the editor and its modal designer. */
+int menus_form_key(int key,int state);
+int menus_form_key_pending(void);
+void menus_form_key_idle(int state);
 void menus_modal(int active);
 void menus_debug(int running,int paused);
 void menus_init(int screen_w, int screen_h);

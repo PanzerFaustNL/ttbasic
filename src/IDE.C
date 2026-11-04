@@ -24,7 +24,7 @@ static int editor_x, editor_y, editor_w, editor_h, cols, rows;
 static int out_used, error_line, done;
 static int output_height = 124;
 static Completion completion;
-static int completing, completion_selected;
+static int completing, completion_selected, form_expose;
 typedef struct { char path[BASIC_PATH];int row; } Breakpoint;
 static Breakpoint breakpoints[64];static int breakpoint_count;
 static int debug_running,debug_paused,debug_stop,debug_mode,debug_depth,debug_frame,debug_first,debug_reason,debug_skip_stop;
@@ -118,6 +118,11 @@ static void activate_document(int index)
 }
 static void open_path(char *path);
 static int discard_all(void);
+static void top_window(int handle)
+{
+    int top,junk;wind_get(0,WF_TOP,&top,&junk,&junk,&junk);
+    if(top!=handle)wind_set(handle,WF_TOP,0,0,0,0);
+}
 static int minimum(int a, int b) { return a < b ? a : b; }
 static int maximum(int a, int b) { return a > b ? a : b; }
 static void fill(int x, int y, int w, int h, int color)
@@ -383,7 +388,10 @@ static void refresh(void)
 {
     menus_state(undo_ready, clipboard_ready, show_tree, props, show_output);
     menus_debug(debug_running,debug_paused);
-    layout(); redraw(wx, wy, ww, wh);
+    layout();
+    /* Closing the designer already queued an AES expose for this window. */
+    if(form_expose){form_expose=0;return;}
+    redraw(wx, wy, ww, wh);
 }
 static void remember(void)
 {
@@ -577,7 +585,7 @@ static int debug_hook(char *path,int line,int depth,int reason)
     debug_skip_stop=reason==BASIC_DEBUG_LINE;debug_reason=reason;debug_paused=1;debug_frame=depth;debug_first=0;
     strcpy(debug_path,path);debug_row=line;props=1;completing=0;
     wind_get(0,WF_TOP,&previous_top,&junk,&junk,&junk);
-    output_height=minimum(output_height,wh-264);debug_location();wind_set(window,WF_TOP,0,0,0,0);
+    output_height=minimum(output_height,wh-264);debug_location();top_window(window);
     strcpy(status,tr(reason==BASIC_DEBUG_ERROR?T_DBG_ERROR:T_DBG_PAUSED));refresh();
     while(debug_paused && !debug_stop){
         events=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON,1,1,1,0,0,0,0,0,0,0,0,0,0,m,0,0,&mx,&my,&mb,&state,&key,&clicks);
@@ -614,7 +622,7 @@ static int debug_hook(char *path,int line,int depth,int reason)
                 }else if(mx>=editor_x && mx<editor_x+editor_w && my>=editor_y && my<editor_y+editor_h){
                     index=first+(my-editor_y)/ch;if(index<lines){row=index;col=0;if(mx<editor_x+32)toggle_breakpoint();}
                 }
-            }else {index=wind_find(mx,my);if(index>=0)wind_set(index,WF_TOP,0,0,0,0);}
+            }else {index=wind_find(mx,my);if(index>=0)top_window(index);}
             evnt_button(1,1,0,&mx,&my,&mb,&state);
         }
         if(debug_paused){strcpy(status,tr(reason==BASIC_DEBUG_ERROR?T_DBG_ERROR:T_DBG_PAUSED));refresh();}
@@ -650,7 +658,7 @@ static void run_source(void)
     if(debug_stop){error_line=0;strcpy(status,tr(T_DBG_STOPPED));
         if(out_used && !strcmp(output[out_used-1],"Program finished."))strcpy(output[out_used-1],"Program stopped.");
     }
-    wind_set(window,WF_TOP,0,0,0,0);
+    top_window(window);
 }
 static void find_next(int beginning)
 {
@@ -823,7 +831,7 @@ static void edit_form(int create)
     saved_row=row;saved_col=col;saved_first=first;saved_left=leftcol;
     while(1){
         result=designer_edit(&model,vdi,window,document_name(),designer_host,handler);
-        if(!result){refresh();return;}
+        if(!result)return;
         if(!form_generate(&model,source,new_form?0:lines,generated,&count)){
             sprintf(message,tr(T_F_ERROR),form_last_error());form_alert(1,message);continue;
         }
@@ -835,7 +843,8 @@ static void edit_form(int create)
         if(result==DESIGN_SOURCE){row=minimum(saved_row,lines-1);col=minimum(saved_col,strlen(source[row]));first=minimum(saved_first,lines-1);leftcol=saved_left;}
         if(result==DESIGN_CODE){line=form_handler_line(source,lines,handler);if(line>=0){row=minimum(lines-1,line+1);col=strlen(source[row]);}}
         if(result==DESIGN_SAVE)save_source();
-        refresh();if(result==DESIGN_RUN){debug_mode=0;run_source();refresh();}return;
+        if(result==DESIGN_SOURCE || result==DESIGN_CODE)form_expose=1;
+        if(result==DESIGN_RUN){debug_mode=0;run_source();}return;
     }
 }
 static void action(int command)
@@ -1046,7 +1055,7 @@ static void edit_key(int key,int state)
 int main(void)
 {
     int in[11], out[57], dx, dy, dw, dh, bw, bh, i;
-    int msg[8], events, mx, my, mb, ks, key, clicks, top, junk, selected_language;
+    int msg[8], events, mx, my, mb, ks, key, clicks, top, junk, selected_language,form_key;
     FILE *settings;
     char last_project[BASIC_PATH];
     last_project[0]=0;
@@ -1097,25 +1106,30 @@ int main(void)
     layout();graf_mouse(ARROW,0L);done=0;
     menus_state(0, 0, show_tree, props, show_output);
     while (!done) {
-        events = evnt_multi(MU_MESAG | MU_KEYBD | MU_BUTTON, 1, 1, 1,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, msg, 0, 0,
+        events = evnt_multi(MU_MESAG | MU_KEYBD | MU_BUTTON | (menus_form_key_pending()?MU_TIMER:0), 1, 1, 1,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, msg, 20, 0,
             &mx, &my, &mb, &ks, &key, &clicks);
+        if(!(events & MU_KEYBD))menus_form_key_idle(ks);
         if (events & MU_MESAG) {
             if (msg[0] == MN_SELECTED) { completing=0; action(menus_event(msg[3], msg[4])); refresh(); }
             else if (msg[3] == window) {
                 if (msg[0] == WM_REDRAW) redraw(msg[4], msg[5], msg[6], msg[7]);
                 else if (msg[0] == WM_CLOSED) done = discard_all();
-                else if (msg[0] == WM_TOPPED) wind_set(window, WF_TOP, 0, 0, 0, 0);
+                else if (msg[0] == WM_TOPPED) top_window(window);
                 else if (msg[0] == WM_MOVED) {
                     wind_set(window, WF_CURRXYWH, msg[4], msg[5], msg[6], msg[7]); refresh();
                 }
             }
         }
         wind_get(window, WF_TOP, &top, &junk, &junk, &junk);
-        if ((events & MU_KEYBD) && top == window) { edit_key(key,ks); }
+        if ((events & MU_KEYBD) && top == window) {
+            form_key=menus_form_key(key,ks);
+            if(form_key>0){completing=0;action((ks&3)?ACT_FORM_NEW:ACT_FORM_EDIT);refresh();}
+            else if(!form_key)edit_key(key,ks);
+        }
         if ((events & MU_BUTTON) && wind_find(mx, my) == window) {
             completing=0;
-            if (top != window) wind_set(window, WF_TOP, 0, 0, 0, 0);
+            if (top != window) top_window(window);
             else if (my >= wy + 5 && my < wy + 29) {
                 if (mx >= wx + 6 && mx < wx + 100) action(ACT_OPEN);
                 else if (mx >= wx + 106 && mx < wx + 218) action(ACT_SAVE);

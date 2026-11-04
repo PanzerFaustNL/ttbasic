@@ -11,6 +11,11 @@
 static FormModel work,initial,previous,before;
 static int window,device,wx,wy,ww,wh,vx,vy,vw,vh,px,pw,cx,cy;
 static int selected,tool,panx,pany,dirty,undo_ready,event_slot,clip[4];
+static void top_window(int handle)
+{
+    int top,junk;wind_get(0,WF_TOP,&top,&junk,&junk,&junk);
+    if(top!=handle)wind_set(handle,WF_TOP,0,0,0,0);
+}
 static int smaller(int a,int b){return a<b?a:b;}
 static int larger(int a,int b){return a>b?a:b;}
 static int snap(int value){return (value+4)/8*8;}
@@ -254,25 +259,28 @@ static int mouse(int mx,int my)
 }
 int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost host,char *handler)
 {
-    int dx,dy,dw,dh,e,m[8],mx,my,mb,ks,key,clicks,scan,result;char title[100];
+    int dx,dy,dw,dh,e,m[8],mx,my,mb,ks,key,clicks,scan,result,repaint_key,form_key;char title[100];
     work=initial=*model;device=vdi;selected=-1;tool=panx=pany=dirty=undo_ready=event_slot=0;handler[0]=0;
     wind_get(0,WF_WORKXYWH,&dx,&dy,&dw,&dh);window=wind_create(KIND,dx,dy,dw,dh);if(window<0)return 0;
     sprintf(title,"TT BASIC 0.10 - %s - %.32s",tr(T_F_TITLE),filename);wind_set(window,WF_NAME,title);wind_open(window,dx,dy,dw,dh);
-    menus_modal(1);layout();refresh();result=-1;
+    menus_modal(1);layout();result=-1;
     while(result<0){
-        e=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON,1,1,1,0,0,0,0,0,0,0,0,0,0,m,0,0,&mx,&my,&mb,&ks,&key,&clicks);
+        e=evnt_multi(MU_MESAG|MU_KEYBD|MU_BUTTON|(menus_form_key_pending()?MU_TIMER:0),1,1,1,0,0,0,0,0,0,0,0,0,0,m,20,0,&mx,&my,&mb,&ks,&key,&clicks);
+        if(!(e & MU_KEYBD))menus_form_key_idle(ks);
         if(e & MU_MESAG){
             if(m[0]==MN_SELECTED)menus_event(m[3],m[4]);
             else if(m[3]==window){
                 if(m[0]==WM_REDRAW)redraw(m[4],m[5],m[6],m[7]);
                 else if(m[0]==WM_CLOSED)result=cancel();
-                else if(m[0]==WM_TOPPED)wind_set(window,WF_TOP,0,0,0,0);
+                else if(m[0]==WM_TOPPED)top_window(window);
                 else if(m[0]==WM_MOVED){wind_set(window,WF_CURRXYWH,m[4],m[5],m[6],m[7]);refresh();}
             }else if(host)host(m);
         }
         if(e & MU_KEYBD){
             scan=(key>>8)&255;if(scan>=84 && scan<=93)scan-=25;
-            if((ks & 4) && scan==32)result=DESIGN_SOURCE;
+            form_key=menus_form_key(key,ks);repaint_key=1;
+            if(form_key<0)repaint_key=0;
+            else if(form_key>0)result=DESIGN_SOURCE;
             else if((key & 255)==27)result=cancel();
             else if(scan==59)form_alert(1,tr(T_F_HELP));
             else if(scan==60)result=DESIGN_SAVE;
@@ -282,10 +290,11 @@ int designer_edit(FormModel *model,int vdi,int parent,char *filename,DesignHost 
             else if((ks & 4) && scan==44)undo();
             else if(scan==83 && selected>=0){before=work;form_delete(&work,selected);selected=-1;remember();}
             else if(scan==72 || scan==80 || scan==75 || scan==77)move_key(scan,ks);
-            refresh();
+            else repaint_key=0;
+            if(result<0 && repaint_key)refresh();
         }
-        if(result<0 && (e & MU_BUTTON) && wind_find(mx,my)==window){result=mouse(mx,my);refresh();evnt_button(1,1,0,&mx,&my,&mb,&ks);}
+        if(result<0 && (e & MU_BUTTON) && wind_find(mx,my)==window){result=mouse(mx,my);if(result<0)refresh();evnt_button(1,1,0,&mx,&my,&mb,&ks);}
     }
     if(result)*model=work;
-    wind_close(window);wind_delete(window);menus_modal(0);wind_set(parent,WF_TOP,0,0,0,0);return result;
+    wind_close(window);wind_delete(window);menus_modal(0);top_window(parent);return result;
 }

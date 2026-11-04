@@ -689,7 +689,7 @@ Die erste Version verwaltet ein Formular in der Startdatei des Projekts mit maxi
 
 ### Zwischen Formular und Code wechseln
 
-Im Entwurf wechselt **Strg+D** zum Quellcode; dieselbe Taste im Editor oeffnet den Entwurf erneut. Auch **Code** wechselt zum Quellcode. Entwurfsaenderungen werden im Arbeitsspeicher angewandt; bestehende Ereignisroutinen bleiben erhalten. Mit F2 speichern. F4 oeffnet die Ereignisroutine des ausgewaehlten Elements.
+Im Entwurf wechselt **Strg+D** zum Quellcode; dieselbe Taste im Editor oeffnet den Entwurf erneut. Auch **Code** wechselt zum Quellcode. Vor dem naechsten Wechsel die Tastenkombination loslassen; Gedrueckthalten wechselt nicht mehr wiederholt zwischen den Ansichten. Entwurfsaenderungen werden im Arbeitsspeicher angewandt; bestehende Ereignisroutinen bleiben erhalten. Mit F2 speichern. F4 oeffnet die Ereignisroutine des ausgewaehlten Elements.
 
 Bei einem laufenden Formular wechselt **Strg+Tab** zwischen Formular und Code. Die Schaltflaeche **Formular** kehrt zum Formular zurueck. Quellcode durchsuchen und Projektdateien auswaehlen ist moeglich; waehrend der Ausfuehrung ist der Code schreibgeschuetzt. Formularwerte bleiben erhalten, das Programm laeuft weiter. Vor dem Bearbeiten mit Stop/Escape beenden. Pause und Haltepunkte verwenden den vorhandenen Debugger.
 

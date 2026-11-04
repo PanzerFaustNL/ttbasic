@@ -689,7 +689,7 @@ The initial designer manages one form in the project's entry source, with up to 
 
 ### Switching between form and code
 
-In the designer, **Ctrl+D** switches to source; use the same shortcut in the editor to reopen the design. The **Code** button also switches to source. Design changes are applied in memory and existing handlers are preserved; use F2 to save. F4 opens the selected control event handler.
+In the designer, **Ctrl+D** switches to source; use the same shortcut in the editor to reopen the design. The **Code** button also switches to source. Release the shortcut keys before switching again; holding them no longer repeatedly opens and closes the views. Design changes are applied in memory and existing handlers are preserved; use F2 to save. F4 opens the selected control event handler.
 
 While a form is running, **Ctrl+Tab** switches between form and code. The **Form** toolbar button returns to the form. Browse the source and select project files; source is read-only during execution. Form values are retained and the program keeps running. Use Stop/Escape before editing source. Pause and breakpoints use the existing debugger.
 

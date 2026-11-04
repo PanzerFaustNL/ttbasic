@@ -215,3 +215,15 @@ void menus_modal(int active)
     int i;if(!active){menus_debug(0,0);return;}
     for(i=1;i<=ACT_DX7DEMO;++i)if(items[i])menu_ienable(menu,items[i],0);
 }
+
+/* AES has no key-up event. Poll modifiers only while this shortcut is
+   latched, and rearm only after the queued key events have drained. */
+static int form_key_latched;
+int menus_form_key(int key,int state)
+{
+    if(((key>>8)&255)!=32 || (!(state&4) && (key&255)!=4))return 0;
+    if(form_key_latched)return -1;
+    form_key_latched=1;return 1;
+}
+int menus_form_key_pending(void){return form_key_latched;}
+void menus_form_key_idle(int state){if(!(state&4))form_key_latched=0;}

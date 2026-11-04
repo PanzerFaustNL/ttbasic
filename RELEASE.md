@@ -23,6 +23,10 @@ Typing redraws affected editor rows and the status bar instead of clearing the w
 
 Ctrl+D switches between the designer and editable source, applying layout changes in memory while preserving handler bodies. F4 opens the selected event handler. During execution, Ctrl+Tab switches between the running form and read-only source; the Form toolbar button returns to the form. Source navigation and project-file browsing work while form values are retained. Stop execution before editing.
 
+## Ctrl+D / VSync correction
+
+Holding Ctrl+D now causes one view switch until the shortcut is released. Repeated key events are consumed across the editor/designer boundary without discarding other typed input. Duplicate paints before closing the designer and after exposing the editor are removed; already-topped windows are not topped again. Native tests with VSync enabled and fast-forward disabled confirm one paint per switch and no idle repaint loop in TT Medium and extended VDI. Form resizing, source edits and existing handler bodies remain intact.
+
 ## Migration
 
 `/` now performs floating-point division; use `\` for integer division. Assigning fractions to Integer/Long requires an explicit conversion. CInt/CLng round ties to even; Fix truncates toward zero. Single and Double are reserved type names; rename methods named Double to DoubleValue. Keep a copy of old projects before migrating. Personal source files and IDE configuration are not automatically rewritten by the source installer.

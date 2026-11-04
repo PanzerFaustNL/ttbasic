@@ -689,7 +689,7 @@ De eerste ontwerper beheert één formulier in het startbestand van een project,
 
 ### Wisselen tussen formulier en code
 
-In de ontwerper wisselt **Ctrl+D** naar de broncode; dezelfde toets opent vanuit de code het ontwerp opnieuw. De knop **Code** doet hetzelfde. Ontwerpwijzigingen worden in het werkgeheugen toegepast en bestaande eventcode blijft behouden; opslaan doe je met F2. F4 gaat naar de eventhandler van het geselecteerde element.
+In de ontwerper wisselt **Ctrl+D** naar de broncode; dezelfde toets opent vanuit de code het ontwerp opnieuw. De knop **Code** doet hetzelfde. Laat de toetscombinatie los voordat je opnieuw wisselt; ingedrukt houden veroorzaakt geen herhaalde wisselingen meer. Ontwerpwijzigingen worden in het werkgeheugen toegepast en bestaande eventcode blijft behouden; opslaan doe je met F2. F4 gaat naar de eventhandler van het geselecteerde element.
 
 Tijdens een draaiend formulier wissel je met **Ctrl+Tab** tussen het formulier en de code. De knop **Formulier** boven de code brengt het formulier terug. Je kunt in de code bladeren en projectbestanden kiezen; de code is tijdens uitvoeren alleen-lezen. Formulierwaarden blijven behouden en het programma blijft draaien. Gebruik Stop/Escape om te stoppen voordat je broncode wijzigt. Pauzeren en breakpoints gebruiken de bestaande debugger.
 
